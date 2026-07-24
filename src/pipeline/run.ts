@@ -212,6 +212,7 @@ async function stepRender(): Promise<void> {
       topic: script.topic,
       headline: script.thumbnailHeadline,
       outPath: THUMBNAIL_PATH,
+      dramatic: resolveTopicMode() === 'trend',
     });
     console.log(
       ok
@@ -227,7 +228,7 @@ async function stepRender(): Promise<void> {
 async function stepThumbnail(): Promise<void> {
   const script = ScriptSchema.parse(await readJson(SCRIPT_PATH));
   console.log('▶ 썸네일 생성:', script.title);
-  const ok = await generateThumbnail({ title: script.title, topic: script.topic, headline: script.thumbnailHeadline, outPath: THUMBNAIL_PATH });
+  const ok = await generateThumbnail({ title: script.title, topic: script.topic, headline: script.thumbnailHeadline, outPath: THUMBNAIL_PATH, dramatic: resolveTopicMode() === 'trend' });
   console.log(ok ? '  · 저장: ' + THUMBNAIL_PATH : '  · OPENAI_API_KEY 없음 → 생성 안 함');
 }
 
@@ -243,7 +244,7 @@ async function stepRethumb(): Promise<void> {
   const topic = process.env.RETHUMB_TOPIC?.trim() || '';
   const headline = process.env.RETHUMB_HEADLINE?.trim() || '';
   console.log('▶ 썸네일 재생성 + 교체:', videoId);
-  const ok = await generateThumbnail({ title, topic, headline, outPath: THUMBNAIL_PATH });
+  const ok = await generateThumbnail({ title, topic, headline, outPath: THUMBNAIL_PATH, dramatic: process.env.RETHUMB_DRAMATIC === 'true' });
   if (!ok) throw new Error('썸네일 생성 실패 (OPENAI_API_KEY 확인)');
   await setThumbnail(videoId, THUMBNAIL_PATH);
   console.log('  · 교체 완료:', THUMBNAIL_PATH);
