@@ -97,8 +97,9 @@ window.__setTime=function(t){
   let bi=0;for(let i=0;i<beats.length;i++)if(t>=beats[i].t0)bi=i;
   const b=beats[bi],u=(t-b.t0)/b.dur;
   const focus=beatFocus(b), prev=bi>0?beatFocus(beats[bi-1]):focus.clone();
-  // 비트 앞 55% 동안 이전 포커스 → 현재 포커스로 카메라가 이동(=나레이션 따라 포커스 이동), 이후 dwell.
-  const e=smooth(clamp(0,1,u/0.55)), dwell=clamp(0,1,(u-0.55)/0.45);
+  // 비트 시작 직후(앞 32%)에 현재 포커스에 도착하도록 당김 → 문장을 말하는 동안 대상이 화면에 있다.
+  // (이후는 dwell: 천천히 밀고 들어가며 머문다.)
+  const e=smooth(clamp(0,1,u/0.32)), dwell=clamp(0,1,(u-0.32)/0.68);
   const look=prev.clone().lerp(focus,e);
   const back=(b.kind==='node')?30:42, up=(b.kind==='node')?3:3.5;
   // 카메라를 포커스 대상 "정면"에 둬서 대상이 화면 중앙에 오게 한다(감쇠 금지). 미세 흔들림만.
