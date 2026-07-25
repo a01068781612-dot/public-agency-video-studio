@@ -26,6 +26,10 @@ on:
         description: '업로드 채널 (default | ch2)'
         required: false
         default: 'default'
+      privacy:
+        description: '공개 상태 (public | unlisted | private). 리뷰 흐름은 unlisted 로 올려 확인 후 발행.'
+        required: false
+        default: ''
   # 웹앱/외부에서 트리거 (client_payload 로 topic 전달)
   repository_dispatch:
     types: [publish-video]
@@ -44,7 +48,8 @@ jobs:
       YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
       YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
       YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
-      YOUTUBE_PRIVACY_STATUS: ${{ vars.YOUTUBE_PRIVACY_STATUS || 'private' }}
+      # 공개 상태: 리뷰 흐름은 웹앱이 unlisted 로 전달 → 확인 후 발행(public)으로 전환. 스케줄은 vars 기본값.
+      YOUTUBE_PRIVACY_STATUS: ${{ github.event.inputs.privacy || github.event.client_payload.privacy || vars.YOUTUBE_PRIVACY_STATUS || 'private' }}
       YOUTUBE_CATEGORY_ID: ${{ vars.YOUTUBE_CATEGORY_ID || '27' }}
       YOUTUBE_DESC_FOOTER: ${{ vars.YOUTUBE_DESC_FOOTER || 'AX전환은 CDSA와 함께\nhttps://cdsa.kr' }}
       # ── 두 번째 채널(ch2) 자격증명 — TARGET_CHANNEL=ch2 일 때 사용. 새 채널 OAuth 후 아래 시크릿을 등록. ──
@@ -128,5 +133,29 @@ jobs:
             out/thumbnail.png
             out/script.json
             out/manifest.json
+            out/upload-result.json
+          if-no-files-found: ignore
+          retention-days: 7
+
+      # ── 업로드 전 리뷰 흐름 ── 결과(videoId·공개상태)를 아티팩트 "이름"에 인코딩해
+      # 웹앱이 zip 다운로드 없이 목록 조회만으로 미리보기(임베드)·발행 버튼을 띄우게 한다.
+      - name: 업로드 결과 파싱
+        id: result
+        if: always()
+        run: |
+          if [ -f out/upload-result.json ]; then
+            echo "vid=$(jq -r .videoId out/upload-result.json)" >> "$GITHUB_OUTPUT"
+            echo "pv=$(jq -r .privacyStatus out/upload-result.json)" >> "$GITHUB_OUTPUT"
+            echo "has=1" >> "$GITHUB_OUTPUT"
+          else
+            echo "has=0" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: 리뷰용 결과 아티팩트
+        if: always() && steps.result.outputs.has == '1'
+        uses: actions/upload-artifact@v4
+        with:
+          name: result__vid-${{ steps.result.outputs.vid }}__pv-${{ steps.result.outputs.pv }}
+          path: out/upload-result.json
           if-no-files-found: ignore
           retention-days: 7

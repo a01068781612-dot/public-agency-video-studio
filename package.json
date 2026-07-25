@@ -15,6 +15,7 @@
     "thumb": "tsx src/pipeline/run.ts --only=thumbnail",
     "rethumb": "tsx src/pipeline/run.ts --only=rethumb",
     "upload": "tsx src/pipeline/run.ts --only=upload",
+    "setprivacy": "tsx src/pipeline/run.ts --only=setprivacy",
     "authorize:youtube": "node scripts/authorize-youtube.mjs",
     "studio": "remotion studio src/remotion/index.ts",
     "typecheck": "tsc --noEmit"

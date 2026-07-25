@@ -14,6 +14,8 @@ export const SCRIPT_PATH = path.join(OUT_DIR, 'script.json');
 export const MANIFEST_PATH = path.join(OUT_DIR, 'manifest.json');
 export const VIDEO_PATH = path.join(OUT_DIR, 'video.mp4');
 export const THUMBNAIL_PATH = path.join(OUT_DIR, 'thumbnail.png');
+// 업로드 결과(videoId·공개상태 등) — "업로드 전 리뷰" 흐름에서 웹앱이 읽어 미리보기/발행 제어에 씀.
+export const UPLOAD_RESULT_PATH = path.join(OUT_DIR, 'upload-result.json');
 // 썸네일 인물 합성용 진행자 사진 (그린스크린/투명 모두 가능). CI 에선 저장소에 커밋하거나 URL 로 제공.
 export const ASSETS_DIR = path.join(ROOT, 'assets');
 export const PRESENTER_IMAGE_PATH = path.join(ASSETS_DIR, 'presenter.png');

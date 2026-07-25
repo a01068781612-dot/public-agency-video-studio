@@ -12,6 +12,7 @@ import {
   MANIFEST_PATH,
   VIDEO_PATH,
   THUMBNAIL_PATH,
+  UPLOAD_RESULT_PATH,
   FPS,
   WIDTH,
   HEIGHT,
@@ -25,10 +26,10 @@ import { generateBgm } from '../lib/bgm.js';
 import { renderVideo } from '../lib/render.js';
 import { generateIllustrations } from '../lib/illustrate.js';
 import { generateThumbnail } from '../lib/thumbnail.js';
-import { uploadVideo, setThumbnail } from '../lib/youtube.js';
+import { uploadVideo, setThumbnail, setPrivacy } from '../lib/youtube.js';
 import { pickVisualThemeMode } from '../lib/visualTheme.js';
 
-type Step = 'script' | 'voice' | 'render' | 'upload' | 'thumbnail' | 'rethumb';
+type Step = 'script' | 'voice' | 'render' | 'upload' | 'thumbnail' | 'rethumb' | 'setprivacy';
 
 const TAIL_PAD_FRAMES = 18; // 각 씬 끝 여백(약 0.6초)
 
@@ -263,7 +264,40 @@ async function stepUpload(): Promise<void> {
     script,
     thumbnailPath: THUMBNAIL_PATH,
   });
-  console.log(`  · 업로드 완료: https://youtu.be/${videoId} (${config.youtubePrivacyStatus})`);
+  const privacy = config.youtubePrivacyStatus;
+  console.log(`  · 업로드 완료: https://youtu.be/${videoId} (${privacy})`);
+  // "업로드 전 리뷰" 흐름용 결과 기록 — 웹앱이 videoId/공개상태로 미리보기·발행을 제어.
+  await writeUploadResult({ videoId, privacyStatus: privacy, title: script.title, thumbnailHeadline: script.thumbnailHeadline, topic: script.topic });
+}
+
+/** 업로드 결과를 out/upload-result.json 에 기록(웹앱 리뷰 화면이 읽음). */
+async function writeUploadResult(r: { videoId: string; privacyStatus: string; title?: string; thumbnailHeadline?: string; topic?: string }): Promise<void> {
+  const data = {
+    videoId: r.videoId,
+    privacyStatus: r.privacyStatus,
+    title: r.title ?? '',
+    thumbnailHeadline: r.thumbnailHeadline ?? '',
+    topic: r.topic ?? '',
+    watchUrl: `https://www.youtube.com/watch?v=${r.videoId}`,
+    embedUrl: `https://www.youtube.com/embed/${r.videoId}`,
+    thumbnailUrl: `https://i.ytimg.com/vi/${r.videoId}/hqdefault.jpg`,
+    channel: config.targetChannel,
+    at: new Date().toISOString(),
+  };
+  await fs.writeFile(UPLOAD_RESULT_PATH, JSON.stringify(data, null, 2), 'utf8');
+  console.log('  · 결과 기록:', UPLOAD_RESULT_PATH);
+}
+
+/** (선택) 이미 올라간 영상의 공개 상태 전환 — 미리보기(unlisted) → 발행(public) 등. */
+async function stepSetPrivacy(): Promise<void> {
+  const videoId = process.env.SETPRIVACY_VIDEO_ID?.trim();
+  const status = (process.env.SETPRIVACY_STATUS?.trim() || 'public') as 'public' | 'unlisted' | 'private';
+  if (!videoId) throw new Error('SETPRIVACY_VIDEO_ID 환경변수가 필요합니다.');
+  if (!['public', 'unlisted', 'private'].includes(status)) throw new Error(`잘못된 공개상태: ${status}`);
+  console.log(`▶ 공개상태 전환: ${videoId} → ${status}`);
+  await setPrivacy(videoId, status);
+  await writeUploadResult({ videoId, privacyStatus: status });
+  console.log('  · 완료');
 }
 
 async function main() {
@@ -281,6 +315,7 @@ async function main() {
     else if (step === 'thumbnail') await stepThumbnail();
     else if (step === 'rethumb') await stepRethumb();
     else if (step === 'upload') await stepUpload();
+    else if (step === 'setprivacy') await stepSetPrivacy();
   }
 
   console.log('\n✅ 완료');

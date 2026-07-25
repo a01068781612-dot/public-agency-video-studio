@@ -83,3 +83,23 @@ export async function setThumbnail(videoId: string, thumbnailPath: string): Prom
   const youtube = google.youtube({ version: 'v3', auth });
   await youtube.thumbnails.set({ videoId, media: { body: fs.createReadStream(thumbnailPath) } });
 }
+
+/**
+ * 이미 올라간 영상의 공개 상태를 바꾼다 (미리보기 unlisted → 발행 public 등).
+ * "업로드 전 리뷰" 흐름의 승인 단계에서 사용.
+ */
+export async function setPrivacy(videoId: string, privacyStatus: 'public' | 'unlisted' | 'private'): Promise<void> {
+  const auth = createOAuthClient();
+  const youtube = google.youtube({ version: 'v3', auth });
+  await youtube.videos.update({
+    part: ['status'],
+    requestBody: {
+      id: videoId,
+      status: {
+        privacyStatus,
+        selfDeclaredMadeForKids: false,
+        containsSyntheticMedia: config.containsSyntheticMedia,
+      } as never,
+    },
+  });
+}
