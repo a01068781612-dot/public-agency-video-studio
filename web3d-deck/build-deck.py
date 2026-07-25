@@ -21,12 +21,14 @@ def font_style():
 
 def build(deck_path, out_path):
     deck = json.load(open(deck_path, encoding='utf-8'))
-    theme = deck.get('theme', 'aurora')
+    # preset = 팔레트+3D오브젝트+카메라+등장을 묶은 프리셋(tunnel/orbit/rise/spiral/editorial).
+    # 기본은 중후한 editorial. 옛 deck 은 theme 키를 쓸 수 있어 폴백.
+    preset = deck.get('preset', deck.get('theme', 'editorial'))
     slides = deck.get('slides', [])
     lib = open(os.path.join(HERE, 'three-lib.js'), encoding='utf-8').read()
     scene = open(os.path.join(HERE, 'scene-3d.js'), encoding='utf-8').read()
-    inject = ("window.THEME_NAME=%s;window.DECK_DATA=%s;"
-              % (json.dumps(theme), json.dumps(slides, ensure_ascii=False)))
+    inject = ("window.PRESET_NAME=%s;window.DECK_DATA=%s;"
+              % (json.dumps(preset), json.dumps(slides, ensure_ascii=False)))
     doc = f"""<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>{html.escape(deck.get('title','3D 프레젠테이션'))}</title>
@@ -39,7 +41,7 @@ def build(deck_path, out_path):
 <script>{inject}</script>
 <script>{scene}</script></body></html>"""
     open(out_path, 'w', encoding='utf-8').write(doc)
-    print(f"OK: {out_path}  ({round(len(doc)/1024)}KB, theme={theme}, slides={len(slides)})")
+    print(f"OK: {out_path}  ({round(len(doc)/1024)}KB, preset={preset}, slides={len(slides)})")
 
 if __name__ == '__main__':
     if len(sys.argv) < 3:

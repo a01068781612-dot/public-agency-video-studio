@@ -4,8 +4,9 @@
 (function(){
 'use strict';
 const T=THREE;
-const TH={grad:[[0,'#0d1030'],[.45,'#3a1c71'],[.75,'#b0417a'],[1,'#ff9a6b']],fog:0x241a4d,
-  ink:'#fff',sub:'#cdd0f0',a1:'#ffd166',a2:'#4cc9f0',a3:'#f72585',accHex:[0xffd166,0x4cc9f0,0xf72585]};
+// 중후(noir) 팔레트 — 딥블랙 + 스틸블루/골드 단일 액센트 + 무채 텍스트.
+const TH={grad:[[0,'#05070c'],[.5,'#0a0e17'],[1,'#0e131e']],fog:0x080b12,
+  ink:'#eef2f8',sub:'#8b95a7',a1:'#5b8cff',a2:'#c9a24a',a3:'#9aa5b8',accHex:[0x5b8cff,0xc9a24a,0x5f6b80]};
 
 // 각 비트 = 나레이션 한 토막 + 도식 노드. (실제 파이프라인에선 dur 를 나레이션 오디오 길이로 채움)
 const BEATS=[
@@ -33,13 +34,13 @@ const pl=new T.PointLight(0x4cc9f0,1.1,700);pl.position.set(-60,50,60);scene.add
 const pl2=new T.PointLight(0xf72585,1.0,700);pl2.position.set(60,-30,40);scene.add(pl2);
 
 // 별
-{const M=300,pos=new Float32Array(M*3);for(let i=0;i<M;i++){pos[i*3]=(Math.random()-.5)*500;pos[i*3+1]=(Math.random()-.5)*300;pos[i*3+2]=(Math.random()*-1)*(N*15+120);}const g=new T.BufferGeometry();g.setAttribute('position',new T.BufferAttribute(pos,3));scene.add(new T.Points(g,new T.PointsMaterial({color:0xffffff,size:1,transparent:true,opacity:.5})));}
+{const M=560,pos=new Float32Array(M*3);for(let i=0;i<M;i++){pos[i*3]=(Math.random()-.5)*520;pos[i*3+1]=(Math.random()-.5)*320;pos[i*3+2]=(Math.random()*-1)*(N*15+140);}const g=new T.BufferGeometry();g.setAttribute('position',new T.BufferAttribute(pos,3));scene.add(new T.Points(g,new T.PointsMaterial({color:0x9fb0d0,size:0.7,transparent:true,opacity:.32})));}
 
 function nodeCard(b,i){
   const W=512,H=300,cv=document.createElement('canvas');cv.width=W;cv.height=H;const c=cv.getContext('2d');
-  c.fillStyle='rgba(12,14,40,.72)';c.strokeStyle='rgba(255,255,255,.22)';c.lineWidth=3;
-  const r=28;c.beginPath();c.moveTo(r,4);c.arcTo(W-4,4,W-4,H-4,r);c.arcTo(W-4,H-4,4,H-4,r);c.arcTo(4,H-4,4,4,r);c.arcTo(4,4,W-4,4,r);c.closePath();c.fill();c.stroke();
-  c.fillStyle=TH.a1;c.font="800 34px Pretendard,sans-serif";c.textBaseline='top';c.fillText('STEP '+(i+1),44,44);
+  c.fillStyle='rgba(255,255,255,.045)';c.strokeStyle='rgba(255,255,255,.14)';c.lineWidth=1.4;
+  const r=18;c.beginPath();c.moveTo(r,4);c.arcTo(W-4,4,W-4,H-4,r);c.arcTo(W-4,H-4,4,H-4,r);c.arcTo(4,H-4,4,4,r);c.arcTo(4,4,W-4,4,r);c.closePath();c.fill();c.stroke();
+  c.fillStyle=TH.a1;c.font="800 30px Pretendard,sans-serif";c.textBaseline='top';c.letterSpacing='4px';c.fillText('STEP '+(i+1),44,46);c.letterSpacing='0px';
   c.fillStyle='#fff';c.font="900 74px Pretendard,sans-serif";c.textBaseline='middle';c.textAlign='left';c.fillText(b.label,44,H/2+10);
   const tex=new T.CanvasTexture(cv);tex.anisotropy=4;return tex;
 }
@@ -47,8 +48,8 @@ const nodes=nodePos.map((p,i)=>{
   const g=new T.Group();g.position.copy(p);
   const mat=new T.MeshBasicMaterial({map:nodeCard(BEATS[i],i),transparent:true,depthWrite:false});
   const card=new T.Mesh(new T.PlaneGeometry(17,10),mat);g.add(card);
-  const col=TH.accHex[i%3];
-  const orb=new T.Mesh(new T.IcosahedronGeometry(2.6,0),new T.MeshStandardMaterial({color:col,emissive:col,emissiveIntensity:.4,roughness:.3,metalness:.5}));
+  const col=TH.accHex[i%2]; // 스틸블루/골드만
+  const orb=new T.Mesh(new T.IcosahedronGeometry(2.4,0),new T.MeshStandardMaterial({color:col,emissive:col,emissiveIntensity:.3,roughness:.4,metalness:.4,wireframe:true,transparent:true,opacity:.55}));
   orb.position.set(9,6,1);g.add(orb);
   g.userData={card,orb,mat,col};scene.add(g);return g;
 });
@@ -57,7 +58,7 @@ for(let i=0;i<N-1;i++){
   const a=nodePos[i].clone().add(new T.Vector3(8,-1,0)), b=nodePos[i+1].clone().add(new T.Vector3(-8,-1,0));
   const mid=a.clone().add(b).multiplyScalar(.5).add(new T.Vector3(0,-4,4));
   const curve=new T.QuadraticBezierCurve3(a,mid,b);
-  const tube=new T.Mesh(new T.TubeGeometry(curve,24,.22,8,false),new T.MeshBasicMaterial({color:0x4cc9f0,transparent:true,opacity:.55}));
+  const tube=new T.Mesh(new T.TubeGeometry(curve,24,.16,8,false),new T.MeshBasicMaterial({color:0x5b8cff,transparent:true,opacity:.3}));
   scene.add(tube);
 }
 
