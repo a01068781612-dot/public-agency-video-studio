@@ -97,12 +97,14 @@ window.__setTime=function(t){
   let bi=0;for(let i=0;i<beats.length;i++)if(t>=beats[i].t0)bi=i;
   const b=beats[bi],u=(t-b.t0)/b.dur;
   const focus=beatFocus(b), prev=bi>0?beatFocus(beats[bi-1]):focus.clone();
-  const e=smooth(clamp(0,1,u/0.4)), dwell=clamp(0,1,(u-0.4)/0.6);
+  // 비트 앞 55% 동안 이전 포커스 → 현재 포커스로 카메라가 이동(=나레이션 따라 포커스 이동), 이후 dwell.
+  const e=smooth(clamp(0,1,u/0.55)), dwell=clamp(0,1,(u-0.55)/0.45);
   const look=prev.clone().lerp(focus,e);
-  const back=(b.kind==='node')?27:34, up=(b.kind==='node')?4:4.5;
-  const cam=new T.Vector3(look.x*0.25,look.y+up,look.z+back-dwell*5);
-  cam.x+=Math.sin(t*0.5)*1.2; // 미세 생동
-  camera.position.copy(cam);camera.lookAt(look.x*0.1,look.y,look.z);
+  const back=(b.kind==='node')?30:42, up=(b.kind==='node')?3:3.5;
+  // 카메라를 포커스 대상 "정면"에 둬서 대상이 화면 중앙에 오게 한다(감쇠 금지). 미세 흔들림만.
+  const cam=new T.Vector3(look.x+Math.sin(t*0.45)*1.4, look.y+up, look.z+back-dwell*4);
+  camera.position.copy(cam);
+  camera.lookAt(look.x, look.y, look.z);
   // 강조/투명
   cards.forEach(cd=>{
     const on=(cd.si===b.si)&&(cd.kind!=='node'||cd.ni===b.ni);
