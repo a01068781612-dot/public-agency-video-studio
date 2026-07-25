@@ -24,6 +24,14 @@ const DECK=(window.DECK_DATA&&window.DECK_DATA.length)?window.DECK_DATA:[
 const SP=66, NODE_DX=27, NODE_DZ=8, CW=44, CH=CW*9/16, NW=18, NH=10;
 const clamp=(a,b,x)=>Math.max(a,Math.min(b,x)), smooth=x=>x<=0?0:x>=1?1:(x<.5?4*x*x*x:1-Math.pow(-2*x+2,3)/2);
 function estDur(t){return Math.max(2.4,(String(t||'').length)/6.6+0.9);}
+// 자막을 짧은 청크(한 줄)로 분할 — 문장/절 단위로 끊고 28자 넘으면 공백에서 추가 분할.
+function splitCap(s){
+  s=String(s||'').trim(); if(!s)return[];
+  const parts=s.replace(/([.!?])\s+/g,'$1').replace(/(,)\s*/g,'$1').split('').map(x=>x.trim()).filter(Boolean);
+  const out=[];
+  parts.forEach(p=>{ while(p.length>28){let cut=p.lastIndexOf(' ',28); if(cut<14)cut=28; out.push(p.slice(0,cut).trim()); p=p.slice(cut).trim();} if(p)out.push(p); });
+  return out;
+}
 
 // ── 비트 타임라인 ──
 DECK.forEach(s=>{if(s.type==='flow')s._nodes=s.nodes.map(n=>typeof n==='string'?{label:n}:n);});
@@ -115,7 +123,17 @@ window.__setTime=function(t){
     cd.mesh.material.opacity=op; cd.mesh.scale.setScalar(on?1+dwell*0.05:0.94);
   });
   DECK.forEach(s=>{if(s._nodes)s._nodes.forEach((nd,ni)=>{const on=(DECK.indexOf(s)===b.si&&ni===b.ni);nd._orb.material.emissiveIntensity=on?.85:.25;nd._orb.material.opacity=on?.8:.4;nd._orb.scale.setScalar(on?1.3:0.85);});});
-  if(capEl){const say=b.kind==='node'?(DECK[b.si]._nodes[b.ni].say||''):(DECK[b.si].say||'');capEl.textContent=say;capEl.style.opacity=say?String(clamp(.15,1,u/0.15)):'0';}
+  if(capEl){
+    const say=b.kind==='node'?(DECK[b.si]._nodes[b.ni].say||''):(DECK[b.si].say||'');
+    if(b._caps===undefined)b._caps=splitCap(say);
+    const caps=b._caps;
+    if(!caps.length){capEl.textContent='';capEl.style.opacity='0';}
+    else{
+      const tot=caps.reduce((a,c)=>a+c.length,0)||1; let acc2=0,idx=caps.length-1;
+      for(let k=0;k<caps.length;k++){const fr=caps[k].length/tot; if(u<acc2+fr){idx=k;break;} acc2+=fr;}
+      capEl.textContent=caps[idx]; capEl.style.opacity='1';
+    }
+  }
 };
 
 let sp=0;(function loop(){sp+=.02;DECK.forEach(s=>{if(s._nodes)s._nodes.forEach(nd=>{nd._orb.rotation.y=sp;nd._orb.rotation.x=sp*.6;});});renderer.render(scene,camera);requestAnimationFrame(loop);})();
