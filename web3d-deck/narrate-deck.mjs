@@ -28,10 +28,11 @@ const palette = deck.palette || 'noir';
 const slides = deck.slides || [];
 
 // deck-timed 와 동일한 비트 순서로 flatten
+// say = 화면 자막(영어·숫자 그대로), spoken = 발음용(있으면 TTS 는 이걸 읽음).
 const beats = [];
 slides.forEach((s) => {
-  if (s.type === 'flow') (s.nodes || []).forEach((n) => { if (typeof n === 'string') n = { label: n }; beats.push({ obj: n, say: n.say || n.label }); });
-  else beats.push({ obj: s, say: s.say || s.title || s.head || s.quote || '' });
+  if (s.type === 'flow') (s.nodes || []).forEach((n) => { if (typeof n === 'string') n = { label: n }; beats.push({ obj: n, say: n.say || n.label, spoken: n.spoken }); });
+  else beats.push({ obj: s, say: s.say || s.title || s.head || s.quote || '', spoken: s.spoken });
 });
 console.log(`비트 ${beats.length}개 · TTS(${VOICE})…`);
 
@@ -47,7 +48,7 @@ for (let i = 0; i < beats.length; i++) {
   const b = beats[i];
   const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${VOICE}`, {
     method: 'POST', headers: { 'xi-api-key': KEY, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ text: b.say, model_id: MODEL }),
+    body: JSON.stringify({ text: b.spoken || b.say, model_id: MODEL }),
   });
   if (!res.ok) { console.error('TTS 실패', res.status, (await res.text()).slice(0, 200)); process.exit(1); }
   const clip = path.join(work, `c${String(i).padStart(3, '0')}.mp3`);
@@ -75,10 +76,13 @@ const engine = fs.readFileSync(path.join(HERE, 'deck-timed.js'), 'utf8');
 const b64 = fs.readFileSync(path.join(HERE, 'pretendard.woff2')).toString('base64');
 const ff = `@font-face{font-family:'Pretendard';font-weight:100 900;font-display:block;src:url(data:font/woff2;base64,${b64}) format('woff2')}`;
 const inject = `window.PALETTE_NAME=${JSON.stringify(palette)};window.DECK_DATA=${JSON.stringify(slides)};`;
+const hdr = String(deck.header || '').replace(/[<>&]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c]));
 const html = `<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8"><style>${ff}
 *{margin:0;padding:0}html,body{overflow:hidden;font-family:'Pretendard',sans-serif}#gl{position:fixed;inset:0;width:100vw;height:100vh}
+#hdr{position:fixed;top:4.5%;left:4.2%;z-index:6;color:#cbd3e6;font-weight:700;font-size:23px;letter-spacing:.01em;display:flex;align-items:center;gap:9px;opacity:.92}
+#hdr b{width:9px;height:9px;border-radius:50%;background:#5b8cff;box-shadow:0 0 10px #5b8cff}
 #cap{position:fixed;left:50%;bottom:7.5%;transform:translateX(-50%);z-index:5;color:#eef2f8;font-weight:600;font-size:30px;line-height:1.3;text-align:center;max-width:66vw;white-space:nowrap;text-shadow:0 3px 16px rgba(0,0,0,.75);background:rgba(10,12,20,.42);padding:10px 24px;border-radius:12px;border:1px solid rgba(255,255,255,.10)}</style></head>
-<body><canvas id="gl"></canvas><div id="cap"></div><script>${lib}</script><script>${inject}</script><script>${engine}</script></body></html>`;
+<body><canvas id="gl"></canvas>${hdr ? `<div id="hdr"><b></b>${hdr}</div>` : ''}<div id="cap"></div><script>${lib}</script><script>${inject}</script><script>${engine}</script></body></html>`;
 const htmlPath = path.join(work, 'deck.html'); fs.writeFileSync(htmlPath, html);
 
 // 4) 프레임을 디스크에 안 쌓고 ffmpeg stdin 으로 스트리밍 + 나레이션 mux
