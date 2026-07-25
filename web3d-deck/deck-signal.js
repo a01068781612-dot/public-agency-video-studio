@@ -23,12 +23,10 @@ body::after{content:'';position:fixed;inset:0;pointer-events:none;z-index:1;
 /* 스테이지 */
 #stage{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;z-index:2}
 .scene{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;
- padding:0 9vw;opacity:0;transition:opacity .35s ease}
-.scene.on{opacity:1}
+ padding:0 9vw;opacity:0;will-change:opacity,transform}
 
 /* 요소 등장 */
-.el{opacity:0;transform:translateY(14px);transition:opacity .5s cubic-bezier(.2,.7,.2,1),transform .5s cubic-bezier(.2,.7,.2,1)}
-.el.in{opacity:1;transform:none}
+.el{opacity:0;will-change:opacity,transform}
 
 /* 거대 숫자 */
 .big{display:flex;align-items:baseline;gap:22px}
@@ -139,38 +137,77 @@ function buildScene(s) {
 }
 const scenes = DECK.map(buildScene);
 
+// 씬 경계(크로스페이드용)
+const sceneT0 = DECK.map((_, i) => beats.find(b => b.si === i).t0);
+const sceneT1 = DECK.map((_, i) => { const bs = beats.filter(b => b.si === i); return bs[bs.length - 1].t1; });
+const XF = 0.45;                                  // 크로스페이드 길이(초)
+const ease = x => x <= 0 ? 0 : x >= 1 ? 1 : (x < .5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2);
+
+// 프레임 단위 결정적 렌더 — CSS 트랜지션에 기대지 않고 모든 값을 t 로 직접 계산한다.
+// (트랜지션은 실시간 기준이라 프레임을 점프시키면 전환이 잘려 "툭툭 끊기는" 원인이 된다.)
 window.__setTime = function (t) {
   t = clamp(0, window.__DURATION - 0.001, t);
   let bi = 0; for (let i = 0; i < beats.length; i++) if (t >= beats[i].t0) bi = i;
   const b = beats[bi], s = DECK[b.si], u = (t - b.t0) / b.dur;
 
-  // 챕터 배지
   hdr.querySelector('.no').textContent = String(b.si + 1).padStart(2, '0');
   hdr.querySelector('.tx').innerHTML = window.HEADER || '';
 
-  scenes.forEach((sc, i) => sc.classList.toggle('on', i === b.si));
+  scenes.forEach((sc, i) => {
+    const s0 = sceneT0[i], s1 = sceneT1[i];
+    let a = 0, entering = false;
+    if (t > s0 - XF && t < s1) {
+      if (t < s0) { a = ease((t - (s0 - XF)) / XF); entering = true; }        // 이전 씬 꼬리와 겹쳐 페이드인
+      else if (t < s1 - XF) a = 1;
+      else a = 1 - ease((t - (s1 - XF)) / XF);                                 // 페이드아웃
+    }
+    sc.style.opacity = a.toFixed(4);
+    if (a <= 0.001) { sc.style.visibility = 'hidden'; return; }
+    sc.style.visibility = 'visible';
+    const p = clamp(0, 1, (t - s0) / Math.max(0.001, s1 - s0));
+    const y = entering ? (1 - a) * 16 : -(1 - a) * 10;                         // 들어올 땐 아래→제자리, 나갈 땐 위로
+    sc.style.transform = `translateY(${y.toFixed(2)}px) scale(${(0.996 + a * 0.004 + p * 0.010).toFixed(4)})`;
 
-  // 요소 순차 등장 — 그 "씬"이 시작된 시점 기준(비트가 여러 개인 nodes 씬도 한 번만 등장).
-  const sceneT0 = beats.find(x => x.si === b.si).t0;
-  const local = t - sceneT0;
-  scenes[b.si].querySelectorAll('.el').forEach((el, k) => el.classList.toggle('in', local > 0.12 + k * 0.11));
+    // 요소 스태거 등장
+    const local = t - s0;
+    sc.querySelectorAll('.el').forEach((el, k) => {
+      const ea = ease(clamp(0, 1, (local - (0.10 + k * 0.13)) / 0.5));
+      el.style.opacity = ea.toFixed(4);
+      const ty = (1 - ea) * 16;
+      el.style.transform = el.classList.contains('nd')
+        ? `translate(-50%,-50%) translateY(${ty.toFixed(2)}px)`
+        : `translateY(${ty.toFixed(2)}px)`;
+    });
+  });
 
-  // nodes: 단계별 강조
+  // nodes: 활성 노드 강조를 부드럽게 보간
   if (s.type === 'nodes' && b.ni >= 0) {
     const hi = (s.steps[b.ni] || {}).node;
-    scenes[b.si].querySelectorAll('.nd').forEach((n, i2) => n.classList.toggle('hi', i2 === hi));
+    const g = ease(clamp(0, 1, u / 0.25));                                     // 비트 시작 후 0.25초에 걸쳐 점등
+    scenes[b.si].querySelectorAll('.nd').forEach((n, i2) => {
+      const on = i2 === hi ? g : 0;
+      n.style.borderColor = `rgba(46,232,122,${(0.08 + on * 0.45).toFixed(3)})`;
+      n.style.color = on > 0.5 ? AC : '';
+      n.style.boxShadow = on > 0.02 ? `0 0 ${(26 * on).toFixed(0)}px rgba(46,232,122,${(0.18 * on).toFixed(3)})` : 'none';
+    });
   }
 
-  // 자막(청크 한 줄)
+  // 자막(청크 한 줄) — 청크 전환도 짧게 페이드
   const say = (s.type === 'nodes' && b.ni >= 0) ? (s.steps[b.ni].say || '') : (s.say || '');
   if (b._caps === undefined) b._caps = splitCap(say);
   const caps = b._caps;
-  if (!caps.length) { capEl.textContent = ''; }
+  if (!caps.length) { capEl.textContent = ''; capEl.style.opacity = '0'; }
   else {
     const tot = caps.reduce((a2, c) => a2 + c.length, 0) || 1;
-    let a3 = 0, idx = caps.length - 1;
-    for (let k = 0; k < caps.length; k++) { const fr = caps[k].length / tot; if (u < a3 + fr) { idx = k; break; } a3 += fr; }
+    let a3 = 0, idx = caps.length - 1, f0 = 0, f1 = 1;
+    for (let k = 0; k < caps.length; k++) {
+      const fr = caps[k].length / tot;
+      if (u < a3 + fr) { idx = k; f0 = a3; f1 = a3 + fr; break; }
+      a3 += fr;
+    }
     capEl.textContent = caps[idx];
+    const cu = (u - f0) / Math.max(0.001, f1 - f0);
+    capEl.style.opacity = Math.min(1, ease(clamp(0, 1, cu / 0.12)), ease(clamp(0, 1, (1 - cu) / 0.10))).toFixed(3);
   }
 };
 (async () => {
