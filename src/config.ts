@@ -16,6 +16,10 @@ export const VIDEO_PATH = path.join(OUT_DIR, 'video.mp4');
 export const THUMBNAIL_PATH = path.join(OUT_DIR, 'thumbnail.png');
 // 업로드 결과(videoId·공개상태 등) — "업로드 전 리뷰" 흐름에서 웹앱이 읽어 미리보기/발행 제어에 씀.
 export const UPLOAD_RESULT_PATH = path.join(OUT_DIR, 'upload-result.json');
+// deck 기반 엔진(signal / deck3d)용 산출물 — 슬라이드 데이터와 업로드 메타(제목·설명·태그).
+export const DECK_PATH = path.join(OUT_DIR, 'deck.json');
+export const DECK_META_PATH = path.join(OUT_DIR, 'deck-meta.json');
+export const WEB3D_DIR = path.join(ROOT, 'web3d-deck');
 // 썸네일 인물 합성용 진행자 사진 (그린스크린/투명 모두 가능). CI 에선 저장소에 커밋하거나 URL 로 제공.
 export const ASSETS_DIR = path.join(ROOT, 'assets');
 export const PRESENTER_IMAGE_PATH = path.join(ASSETS_DIR, 'presenter.png');
@@ -119,7 +123,12 @@ export const config = {
   researchProvider: optional('RESEARCH_PROVIDER', 'openai').toLowerCase(),
   openaiResearchModel: optional('OPENAI_RESEARCH_MODEL', 'gpt-4.1-mini'),
 
-  // 영상 엔진: 'illustrated'(AI 흑백 일러스트) | 'web3d'(3D 웹녹화) | 'remotion'(손그림). 기본 illustrated.
+  // 영상 엔진(=화면 스타일):
+  //  illustrated : 2D AI 흑백 일러스트 + 코드 도식 (기본, 기존 채널 스타일)
+  //  deck3d      : 3D 기하학 도형 공간에서 카메라가 이동하며 설명 (web3d-deck/deck-timed.js)
+  //  signal      : 딥블랙 + 단일 액센트 + 큰 숫자의 데이터 중심 화면 (web3d-deck/deck-signal.js)
+  //  signal3d    : signal 디자인 + 3D 깊이 카메라(텍스트는 DOM 이라 선명)
+  //  web3d/remotion : 구버전 엔진
   videoEngine: optional('VIDEO_ENGINE', 'illustrated').toLowerCase(),
 
   // 동작

@@ -30,6 +30,10 @@ on:
         description: '공개 상태 (public | unlisted | private). 리뷰 흐름은 unlisted 로 올려 확인 후 발행.'
         required: false
         default: ''
+      style:
+        description: '영상 스타일 (illustrated=2D 벡터 | deck3d=3D 기하학 | signal=데이터 중심 | signal3d=시그널+3D)'
+        required: false
+        default: ''
   # 웹앱/외부에서 트리거 (client_payload 로 topic 전달)
   repository_dispatch:
     types: [publish-video]
@@ -80,7 +84,7 @@ jobs:
       PRESENTER_IMAGE_URL: ${{ secrets.PRESENTER_IMAGE_URL || vars.PRESENTER_IMAGE_URL || '' }}
       THUMBNAIL_TONE: ${{ vars.THUMBNAIL_TONE || 'dark' }}
       # 영상 엔진: illustrated(AI 흑백 일러스트) | web3d(3D 웹녹화) | remotion(손그림). 기본 illustrated.
-      VIDEO_ENGINE: ${{ vars.VIDEO_ENGINE || 'illustrated' }}
+      VIDEO_ENGINE: ${{ github.event.inputs.style || github.event.client_payload.style || vars.VIDEO_ENGINE || 'illustrated' }}
     steps:
       - name: 체크아웃
         uses: actions/checkout@v4
@@ -133,6 +137,8 @@ jobs:
             out/thumbnail.png
             out/script.json
             out/manifest.json
+            out/deck.json
+            out/deck-meta.json
             out/upload-result.json
           if-no-files-found: ignore
           retention-days: 7

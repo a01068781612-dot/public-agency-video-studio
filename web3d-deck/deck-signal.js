@@ -5,6 +5,7 @@
 (function () {
 'use strict';
 const AC = window.ACCENT || '#2ee87a';
+const SPACE3D = !!window.SPACE3D;   // SIGNAL 디자인 + 3D 깊이 카메라(텍스트는 DOM 이라 선명)
 const css = `
 :root{--bg:#0a0a0a;--ink:#e8ecf2;--dim:#8a8f98;--faint:#5a5f68;--ac:${AC};--line:rgba(255,255,255,.09);--card:rgba(255,255,255,.025)}
 *{margin:0;padding:0;box-sizing:border-box}
@@ -22,6 +23,8 @@ body::after{content:'';position:fixed;inset:0;pointer-events:none;z-index:1;
 
 /* 스테이지 */
 #stage{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;z-index:2}
+#stage.space3d{perspective:1500px;perspective-origin:50% 46%;transform-style:preserve-3d}
+#stage.space3d .scene{transform-style:preserve-3d;will-change:opacity,transform}
 .scene{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;
  padding:0 9vw;opacity:0;will-change:opacity,transform}
 
@@ -99,7 +102,7 @@ window.__DURATION = acc;
 const hdr = document.createElement('div'); hdr.id = 'hdr';
 hdr.innerHTML = `<span class="no mono">00</span><span class="tx"></span>`;
 document.body.appendChild(hdr);
-const stage = document.createElement('div'); stage.id = 'stage'; document.body.appendChild(stage);
+const stage = document.createElement('div'); stage.id = 'stage'; if (SPACE3D) stage.classList.add('space3d'); document.body.appendChild(stage);
 const capEl = document.createElement('div'); capEl.id = 'cap'; document.body.appendChild(capEl);
 
 function esc(x) { return String(x == null ? '' : x); }
@@ -153,6 +156,10 @@ window.__setTime = function (t) {
   hdr.querySelector('.no').textContent = String(b.si + 1).padStart(2, '0');
   hdr.querySelector('.tx').innerHTML = window.HEADER || '';
 
+  // 연속 카메라 위치(씬 인덱스 공간) — 크로스페이드 구간에서 다음 씬으로 부드럽게 이동.
+  let camIdx = b.si;
+  { const e1 = sceneT1[b.si]; if (t > e1 - XF) camIdx = b.si + ease((t - (e1 - XF)) / XF); }
+
   scenes.forEach((sc, i) => {
     const s0 = sceneT0[i], s1 = sceneT1[i];
     let a = 0, entering = false;
@@ -165,8 +172,17 @@ window.__setTime = function (t) {
     if (a <= 0.001) { sc.style.visibility = 'hidden'; return; }
     sc.style.visibility = 'visible';
     const p = clamp(0, 1, (t - s0) / Math.max(0.001, s1 - s0));
-    const y = entering ? (1 - a) * 16 : -(1 - a) * 10;                         // 들어올 땐 아래→제자리, 나갈 땐 위로
-    sc.style.transform = `translateY(${y.toFixed(2)}px) scale(${(0.996 + a * 0.004 + p * 0.010).toFixed(4)})`;
+    if (SPACE3D) {
+      // 카메라가 깊이 방향으로 이동 — 현재 씬은 z=0, 다음 씬은 뒤(멀리), 지난 씬은 앞으로 스쳐 지나간다.
+      const dz = -(i - camIdx) * 900;
+      const lx = (i % 2 ? 1 : -1) * 70 * (i - camIdx);                          // 좌우로 살짝 어긋나게 배치
+      const ry = (i - camIdx) * -7;                                             // 살짝 비스듬히
+      const yy = entering ? (1 - a) * 10 : 0;
+      sc.style.transform = `translate3d(${lx.toFixed(1)}px, ${yy.toFixed(1)}px, ${dz.toFixed(1)}px) rotateY(${ry.toFixed(2)}deg)`;
+    } else {
+      const y = entering ? (1 - a) * 16 : -(1 - a) * 10;                        // 들어올 땐 아래→제자리, 나갈 땐 위로
+      sc.style.transform = `translateY(${y.toFixed(2)}px) scale(${(0.996 + a * 0.004 + p * 0.010).toFixed(4)})`;
+    }
 
     // 요소 스태거 등장
     const local = t - s0;

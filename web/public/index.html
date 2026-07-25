@@ -200,6 +200,15 @@
               <option value="ch2">두 번째 채널</option>
             </select>
           </div>
+          <div>
+            <label for="style">영상 스타일</label>
+            <select id="style">
+              <option value="illustrated" selected>2D 벡터 일러스트</option>
+              <option value="deck3d">3D 기하학 도형</option>
+              <option value="signal">시그널(데이터 중심)</option>
+              <option value="signal3d">시그널 + 3D 공간</option>
+            </select>
+          </div>
         </div>
 
         <div class="switch">
@@ -295,6 +304,7 @@
               topic, mode: $('mode').value, minutes: Number($('minutes').value),
               level: $('level').value, channel: $('channel').value,
               upload: $('upload').checked, password: $('pw').value,
+              style: $('style').value,
               // 업로드를 켜면 먼저 '미등록(unlisted)'으로 올려 확인 후 발행하는 리뷰 흐름.
               privacy: $('upload').checked ? 'unlisted' : '',
             }),

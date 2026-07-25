@@ -38,7 +38,8 @@
     "remotion": "^4.0.400",
     "roughjs": "^4.6.6",
     "sharp": "^0.35.3",
-    "zod": "4.3.6"
+    "zod": "4.3.6",
+    "ffmpeg-static": "^5.2.0"
   },
   "devDependencies": {
     "@types/react": "^19.0.0",

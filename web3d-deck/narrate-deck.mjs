@@ -88,7 +88,7 @@ if (ENGINE === 'signal') {
     const m64 = fs.readFileSync(monoPath).toString('base64');
     ff += `@font-face{font-family:'JetBrains Mono';font-weight:500;font-display:block;src:url(data:font/woff2;base64,${m64}) format('woff2')}`;
   }
-  const inj = `window.DECK_DATA=${JSON.stringify(slides)};window.HEADER=${JSON.stringify(hdrTxt)};window.ACCENT=${JSON.stringify(deck.accent || '#2ee87a')};`;
+  const inj = `window.DECK_DATA=${JSON.stringify(slides)};window.HEADER=${JSON.stringify(hdrTxt)};window.ACCENT=${JSON.stringify(deck.accent || '#2ee87a')};window.SPACE3D=${deck.space3d ? 'true' : 'false'};`;
   html = `<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8"><style>${ff}</style></head>
 <body><script>${inj}</script><script>${engine}</script></body></html>`;
 } else {

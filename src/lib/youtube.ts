@@ -22,7 +22,9 @@ export function createOAuthClient() {
  */
 export async function uploadVideo(params: {
   videoPath: string;
-  script: Script;
+  // 제목·설명·태그만 있으면 되므로 Script 전체가 아니라 메타 형태를 받는다
+  // (deck 기반 엔진은 Script 스키마를 쓰지 않는다).
+  script: { title: string; description: string; tags: string[] };
   thumbnailPath?: string;
 }): Promise<string> {
   const { videoPath, script, thumbnailPath } = params;
