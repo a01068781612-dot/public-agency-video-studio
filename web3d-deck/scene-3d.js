@@ -11,6 +11,8 @@ const PALETTES={
   blueprint:{grad:[[0,'#081a2e'],[.5,'#0e2f52'],[1,'#12507f']],fog:0x0c2740,ink:'#eaf6ff',sub:'#9fc4e0',card:'rgba(6,20,36,.42)',cstroke:'rgba(120,200,255,.30)',a1:'#4cc9f0',a2:'#3a86ff',a3:'#8be9fd',accHex:[0x4cc9f0,0x3a86ff,0x8be9fd]},
   paper:{grad:[[0,'#f7f0e2'],[.5,'#efe3cd'],[1,'#e6d5b8']],fog:0xe9dcc2,ink:'#2a2418',sub:'#6b5f45',card:'rgba(255,255,255,.62)',cstroke:'rgba(120,95,55,.28)',a1:'#e8590c',a2:'#0f9b8e',a3:'#c9184a',accHex:[0xe8590c,0x0f9b8e,0xc9184a]},
   neon:{grad:[[0,'#0a0a18'],[.5,'#1a0b2e'],[1,'#2a0e3f']],fog:0x140a24,ink:'#fff',sub:'#c8b6e2',card:'rgba(12,6,26,.45)',cstroke:'rgba(255,42,109,.30)',a1:'#ff2a6d',a2:'#05d9e8',a3:'#d1f7ff',accHex:[0xff2a6d,0x05d9e8,0xa0f0ff]},
+  // 중후·프리미엄: 딥차콜 배경 + 단일 스틸블루/골드 액센트 + 무채 텍스트. 색·도형 절제.
+  noir:{grad:[[0,'#05070c'],[.5,'#0a0e17'],[1,'#0e131e']],fog:0x080b12,ink:'#eef2f8',sub:'#8b95a7',card:'rgba(255,255,255,.035)',cstroke:'rgba(255,255,255,.12)',a1:'#5b8cff',a2:'#c9a24a',a3:'#9aa5b8',accHex:[0x5b8cff,0xc9a24a,0x5f6b80]},
 };
 // 프리셋: 팔레트+오브젝트배치+카메라+등장+배경+카드모양
 const PRESETS={
@@ -18,6 +20,8 @@ const PRESETS={
   orbit:{pal:'blueprint', objects:'boxes', camera:'orbit', entrance:'spin', bg:'grid', card:'bracket', fov:58, sp:66, dist:44},
   rise:{pal:'paper', objects:'calm', camera:'rise', entrance:'rise', bg:'plain', card:'soft', fov:52, sp:58, dist:38},
   spiral:{pal:'neon', objects:'shards', camera:'spiral', entrance:'explode', bg:'stars', card:'round', fov:66, sp:60, dist:40},
+  // 중후·절제: 먼지 파티클, 미니멀 모노 오브젝트, 차분한 카메라, 헤어라인 카드, 낮은 fov(원근 왜곡 최소).
+  editorial:{pal:'noir', objects:'mono', camera:'calm', entrance:'fade', bg:'dust', card:'hair', fov:44, sp:66, dist:48},
 };
 const PNAME=window.PRESET_NAME||(new URLSearchParams(location.search).get('p')||'tunnel');
 const PR=PRESETS[PNAME]||PRESETS.tunnel;
@@ -40,8 +44,9 @@ function card(c,x,y,w,h){
     c.strokeStyle=TH.a1;c.lineWidth=4;const L=46;
     [[x,y,1,1],[x+w,y,-1,1],[x,y+h,1,-1],[x+w,y+h,-1,-1]].forEach(([cx,cy,sx,sy])=>{
       c.beginPath();c.moveTo(cx,cy+sy*L);c.lineTo(cx,cy);c.lineTo(cx+sx*L,cy);c.stroke();}); return; }
-  const r=PR.card==='soft'?40:PR.card==='round'?44:14;
-  c.fillStyle=TH.card;c.strokeStyle=TH.cstroke;c.lineWidth=2;rr(c,x,y,w,h,r);c.fill();c.stroke();
+  const r=PR.card==='soft'?40:PR.card==='round'?44:PR.card==='hair'?12:14;
+  const lw=PR.card==='hair'?1.2:2;
+  c.fillStyle=TH.card;c.strokeStyle=TH.cstroke;c.lineWidth=lw;rr(c,x,y,w,h,r);c.fill();c.stroke();
 }
 function gt(c,x0,y0,x1,y1,cols){const g=c.createLinearGradient(x0,y0,x1,y1);g.addColorStop(0,cols[0]);g.addColorStop(1,cols[1]);return g;}
 function slideTexture(s){
@@ -69,7 +74,7 @@ const l1=new T.PointLight(TH.accHex[1],1.1,700);l1.position.set(-70,50,60);scene
 const l2=new T.PointLight(TH.accHex[0],1.0,700);l2.position.set(70,-40,40);scene.add(l2);
 
 // 배경 요소: 별/그리드
-if(PR.bg==='stars'){const N=380,pos=new Float32Array(N*3);for(let i=0;i<N;i++){pos[i*3]=(Math.random()-.5)*600;pos[i*3+1]=(Math.random()-.5)*400;pos[i*3+2]=(Math.random()*-1)*((DECK.length)*SP+200);}const g=new T.BufferGeometry();g.setAttribute('position',new T.BufferAttribute(pos,3));scene.add(new T.Points(g,new T.PointsMaterial({color:0xffffff,size:1.1,transparent:true,opacity:.6,sizeAttenuation:true})));}
+if(PR.bg==='stars'||PR.bg==='dust'){const dust=PR.bg==='dust';const N=dust?680:380,pos=new Float32Array(N*3);for(let i=0;i<N;i++){pos[i*3]=(Math.random()-.5)*600;pos[i*3+1]=(Math.random()-.5)*420;pos[i*3+2]=(Math.random()*-1)*((DECK.length)*SP+200);}const g=new T.BufferGeometry();g.setAttribute('position',new T.BufferAttribute(pos,3));scene.add(new T.Points(g,new T.PointsMaterial({color:dust?0x9fb0d0:0xffffff,size:dust?0.7:1.1,transparent:true,opacity:dust?.35:.6,sizeAttenuation:true})));}
 if(PR.bg==='grid'){for(let i=0;i<DECK.length;i++){const gh=new T.GridHelper(200,20,TH.accHex[0],0x1b3a5a);gh.position.set(0,-16,-i*SP);gh.material.opacity=.25;gh.material.transparent=true;scene.add(gh);}}
 
 // 슬라이드 앵커 위치(카메라 스타일에 따라 축이 다르다)
@@ -81,18 +86,21 @@ function geoFor(i,k){
   if(PR.objects==='boxes') return new T.BoxGeometry(4.6,4.6,4.6);
   if(PR.objects==='calm')  return [new T.IcosahedronGeometry(5,0),new T.TorusGeometry(4,.7,16,40)][(i)%2];
   if(PR.objects==='shards')return new T.TetrahedronGeometry(2.2+((i+k)%3),0);
+  if(PR.objects==='mono')  return [new T.IcosahedronGeometry(5,0),new T.TorusGeometry(4.4,.5,20,48)][(i+k)%2];
   return [new T.IcosahedronGeometry(3.4,0),new T.TorusGeometry(2.6,.8,14,36),new T.OctahedronGeometry(3.6,0)][(i+k)%3]; // ring/scatter
 }
-function objCount(){return PR.objects==='calm'?1:PR.objects==='shards'?6:3;}
+function objCount(){return PR.objects==='calm'?1:PR.objects==='mono'?2:PR.objects==='shards'?6:3;}
 function basePos(i,k,n){
   const A=anchor(i);
   if(PR.objects==='ring'){const a=(k/n)*TAU+i;return new T.Vector3(A.x+Math.cos(a)*22,A.y+Math.sin(a)*13,A.z+10);}
   if(PR.objects==='boxes'){return new T.Vector3(A.x+(k-(n-1)/2)*26,A.y+(k%2?9:-9),A.z+12);}
   if(PR.objects==='shards'){const a=(k/n)*TAU;return new T.Vector3(A.x+Math.cos(a)*(20+k*3),A.y+Math.sin(a)*(14+k*2),A.z+6+k*3);}
   if(PR.objects==='calm'){return new T.Vector3(A.x+(i%2?20:-20),A.y+8,A.z+8);}
+  if(PR.objects==='mono'){return new T.Vector3(A.x+(i%2?26:-26),A.y+(k?11:-9),A.z-8-k*10);}
   return new T.Vector3(A.x+(k-1)*30+(i%2?8:-8),A.y+(k%2?1:-1)*14+2,A.z+10+k*5);
 }
 function entranceOff(base,i,k){
+  if(PR.entrance==='fade')   return new T.Vector3(0,5,-4);
   if(PR.entrance==='rise')   return new T.Vector3(0,-46,0);
   if(PR.entrance==='explode')return new T.Vector3(-(base.x-anchor(i).x),-(base.y-anchor(i).y),0); // 중앙에서 시작
   if(PR.entrance==='spin')   return new T.Vector3(0,0,0); // 위치는 유지, 회전/스케일로 등장
@@ -106,10 +114,11 @@ function buildGroups(){groups=DECK.map((s,i)=>{
   const plane=new T.Mesh(new T.PlaneGeometry(PW,PH),mat);g.add(plane);
   const n=objCount(),shapes=[];
   for(let k=0;k<n;k++){const col=TH.accHex[(i+k)%3];
-    const wire=PR.objects==='boxes';
-    const m=new T.Mesh(geoFor(i,k),new T.MeshStandardMaterial({color:col,emissive:col,emissiveIntensity:wire?.6:.3,roughness:.3,metalness:.5,transparent:true,wireframe:wire}));
+    const wire=PR.objects==='boxes'||PR.objects==='mono';
+    const dim=PR.objects==='mono'?0.45:1;
+    const m=new T.Mesh(geoFor(i,k),new T.MeshStandardMaterial({color:col,emissive:col,emissiveIntensity:PR.objects==='mono'?.32:(wire?.6:.3),roughness:.35,metalness:.5,transparent:true,wireframe:wire}));
     const bp=basePos(i,k,n); const local=bp.clone().sub(anchor(i));
-    m.userData={local, off:entranceOff(bp,i,k), spin:(0.3+Math.abs(Math.sin(i*3+k)))*(k%2?1:-1)};
+    m.userData={local, off:entranceOff(bp,i,k), dim, spin:(0.3+Math.abs(Math.sin(i*3+k)))*(k%2?1:-1)*(PR.objects==='mono'?.4:1)};
     m.position.copy(local); g.add(m); shapes.push(m);
   }
   g.userData={mat,plane,shapes};scene.add(g);return g;
@@ -137,10 +146,13 @@ function camFor(f){
   } else {
     curAlong=(i+sm)*SP;
     const z=-curAlong;
+    const calm=PR.camera==='calm';
+    const latAmp=calm?7:18, vyAmp=calm?2:5, zoomAmt=calm?9:16;
     c.up.set(0,1,0);
-    c.position.set(side*18*swing, Math.cos(tt*Math.PI)*5, z+zoom);
+    c.position.set(side*latAmp*swing, Math.cos(tt*Math.PI)*vyAmp, z+(DIST-centered*zoomAmt));
     if(PR.camera==='spiral'){const a=f*Math.PI*4;c.position.x+=Math.cos(a)*14;c.position.y+=Math.sin(a)*14;c.rotation.z=a*.12;}
     else if(PR.camera==='orbit'){c.position.x+=Math.sin(seg*0.8)*22;c.rotation.z=0;}
+    else if(calm){c.rotation.z=0;}
     else c.rotation.z=swing*side*0.04;
     c.lookAt(0,0,z);
   }
@@ -158,7 +170,7 @@ function onScroll(){
     g.userData.shapes.forEach(m=>{const u=m.userData;
       m.position.copy(u.local).addScaledVector(u.off,(1-op));
       const sc=(PR.entrance==='spin')?(.15+op*.85):(.3+op*.7);
-      m.scale.setScalar(sc); m.material.opacity=Math.min(1,op*1.3);
+      m.scale.setScalar(sc); m.material.opacity=Math.min(1,op*1.3)*(u.dim||1);
       if(PR.entrance==='spin')m.rotation.y=(1-op)*8;});
     g.visible=d<SP*1.7;
   });
