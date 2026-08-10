@@ -17,7 +17,7 @@ export async function synthesizeSpeech(params: {
   recordUsage({ kind: 'elevenlabs', step: 'narration', model: config.elevenLabsModelId, chars: text.length });
 
   const res = await fetch(
-    `${API_BASE}/text-to-speech/${config.elevenLabsVoiceId}`,
+    `${API_BASE}/text-to-speech/${config.elevenLabsVoiceId()}`,
     {
       method: 'POST',
       headers: {

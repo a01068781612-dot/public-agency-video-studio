@@ -240,9 +240,8 @@ function renderDeckVideo(): Promise<void> {
         BGM_PATH: bgmPath,
         USAGE_PATH: path.join(OUT_DIR, 'usage.json'),
         BGM_VOLUME: process.env.BGM_VOLUME || '0.085',
-        // 워크플로 변수(ELEVENLABS_VOICE_ID)가 비어 있어도 config 의 기본값이 적용되도록 명시 전달.
         ELEVENLABS_API_KEY: config.elevenLabsApiKey(),
-        ELEVENLABS_VOICE_ID: config.elevenLabsVoiceId,
+        ELEVENLABS_VOICE_ID: config.elevenLabsVoiceId(),
         ELEVENLABS_MODEL_ID: config.elevenLabsModelId,
         NODE_PATH: [process.env.NODE_PATH, '/opt/node22/lib/node_modules'].filter(Boolean).join(path.delimiter),
       },
