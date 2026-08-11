@@ -82,29 +82,35 @@ async function stepScript(): Promise<Script> {
   const agencyLabel = agency ? `, 대상기관=${agency.label}` : '';
   console.log(`▶ [1/4] 대본 생성 (${topicLabel}${agencyLabel}, ${config.targetMinutes}분, 난이도=${config.contentLevel})`);
 
-  // 상세 브리핑(긴 글)은 그 자체가 콘텐츠 명세라 리서치가 불필요하다.
-  // 그 외(자동 트렌드 모드, 또는 사용자가 짧게 지정한 주제)는 웹서치로 최신 정보를 조사해
-  // "학습 데이터 시점에 머문 오래된 내용"이 아니라 실제 최신 사실을 반영하게 한다.
+  // 주제가 지정되면 길이와 무관하게 항상 웹서치부터 한다 — 소재가 매번 바뀌는 채널이라
+  // (특정 사건·수상·정책 발표 등) 모델의 학습 지식만으론 사실관계를 알 수 없고, 지어내면
+  // 보도자료용으로 쓸 수 없기 때문이다. (예전엔 긴 브리핑이면 리서치를 통째로 건너뛰어,
+  // 붙여넣은 보도자료 원문에 대한 사실 확인·보강이 전혀 안 됐다.)
   const customTopic = config.customTopic || undefined;
   const isBriefTopic = Boolean(customTopic) && (customTopic!.length > 120 || /\n/.test(customTopic!));
   let research: string | undefined;
-  if (!isBriefTopic) {
-    if (customTopic || mode === 'trend') {
-      // 주제 지정/트렌드 모드: 그 주제의 최신 소식을 조사. 대상기관이 있고 주제가 없으면
-      // 그 기관이 실제로 벌인 AI 관련 사업·정책까지 검색어에 넣는다 — 도메인 일반론보다
-      // "이 기관이 진짜로 한 일"이 나오면 보도자료에 그대로 쓸 수 있어 훨씬 값지다.
-      console.log('  · 최신 정보 웹서치 조사 중...');
-      const researchTopic =
-        customTopic ?? (agency ? `"${agency.label}"의 AI 관련 최근 정책·사업 소식, 그리고 AI와 ${agency.domain} 분야의 최신 동향` : undefined);
-      research = await researchRecentInfo({ dateLabel, topic: researchTopic });
-    } else {
-      // basics(기초 개념) 모드: 주제는 모델이 자동으로 고르므로 특정 주제 검색은 못 하지만,
-      // "지금 현재의 최신 모델 지형"을 미리 조사해 넘긴다 — 안 그러면 학습 시점(≈2024) 지식으로
-      // GPT-4o·GPT-4 터보 같은 이미 구세대가 된 모델을 대표 예시로 드는 문제가 생긴다(실제로 발생).
-      console.log('  · 최신 모델 지형 웹서치 조사 중(기초 모드 그라운딩)...');
-      research = await researchRecentInfo({ dateLabel, kind: 'landscape' });
-    }
-    console.log(research ? '  · 리서치 완료' : '  · 리서치 없음(건너뜀, 학습 데이터로만 진행)');
+  if (customTopic || mode === 'trend') {
+    // 주제 지정/트렌드 모드: 그 주제의 최신 소식을 조사. 대상기관이 있고 주제가 없으면
+    // 그 기관이 실제로 벌인 AI 관련 사업·정책까지 검색어에 넣는다 — 도메인 일반론보다
+    // "이 기관이 진짜로 한 일"이 나오면 보도자료에 그대로 쓸 수 있어 훨씬 값지다.
+    console.log('  · 최신 정보 웹서치 조사 중...');
+    const researchTopic =
+      customTopic ?? (agency ? `"${agency.label}"의 AI 관련 최근 정책·사업 소식, 그리고 AI와 ${agency.domain} 분야의 최신 동향` : undefined);
+    research = await researchRecentInfo({ dateLabel, topic: researchTopic });
+  } else {
+    // basics(기초 개념) 모드: 주제는 모델이 자동으로 고르므로 특정 주제 검색은 못 하지만,
+    // "지금 현재의 최신 모델 지형"을 미리 조사해 넘긴다 — 안 그러면 학습 시점(≈2024) 지식으로
+    // GPT-4o·GPT-4 터보 같은 이미 구세대가 된 모델을 대표 예시로 드는 문제가 생긴다(실제로 발생).
+    console.log('  · 최신 모델 지형 웹서치 조사 중(기초 모드 그라운딩)...');
+    research = await researchRecentInfo({ dateLabel, kind: 'landscape' });
+  }
+  if (research) {
+    console.log(`  · 리서치 완료 (${research.length}자)`);
+  } else if (customTopic) {
+    // 지정 주제인데 검색이 비었다 = 사실관계를 모른 채 대본을 쓰게 된다는 뜻이라 눈에 띄게 경고한다.
+    console.warn('  ⚠ 리서치 실패/결과 없음 — 지정한 주제의 사실관계를 확인하지 못했습니다. 대본이 일반론 위주로 나올 수 있습니다.');
+  } else {
+    console.log('  · 리서치 없음(건너뜀, 학습 데이터로만 진행)');
   }
 
   // deck 기반 엔진(3D 기하학 / SIGNAL)은 슬라이드 데이터 구조가 달라 전용 생성기를 쓴다.

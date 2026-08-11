@@ -35,8 +35,10 @@ function buildQuery(topic?: string, kind: 'topic' | 'landscape' = 'topic'): stri
   if (kind === 'landscape') {
     return '지금 현재 각 회사의 최신 주력 대형 언어 모델(LLM)이 무엇인지 — OpenAI, Anthropic(Claude), Google(Gemini), Meta 등 회사별 가장 최근 출시된 대표 모델의 정확한 이름·버전과 대략의 컨텍스트 길이. 이미 구세대가 된 모델(예: GPT-4o, GPT-4 Turbo)이 아니라 "가장 최신" 모델';
   }
+  // 소재가 AI 뉴스만이 아니다(특정 사건·수상·정책 발표 등 무엇이든 올 수 있다).
+  // 그래서 검색어를 AI 업계 용어로 좁히지 않고, 육하원칙 사실관계를 요구한다.
   return topic
-    ? `"${topic}"에 대한 최신 소식·업데이트·수치·논쟁`
+    ? `"${topic}" — 이 사안의 사실관계(무엇이 언제 어디서 있었는지, 관련 기관·주체, 규모·수치, 경과와 후속 조치)와 관련 최신 보도`
     : '최근 1~2개월 사이 AI 업계에서 화제가 된 모델·제품·논쟁·연구 발표';
 }
 
@@ -50,6 +52,7 @@ const RESEARCH_INSTRUCTIONS = [
 function researchPrompt(dateLabel: string, query: string): string {
   return [
     `오늘은 ${dateLabel} 이다. ${query}를 web_search 도구로 실제 검색해라(검색 없이 답하지 말 것).`,
+    '고유명사(기관명·지역명·사업명)는 검색어에 그대로 넣어 그 대상 자체를 찾아라. 한 번 검색해서 부족하면 검색어를 바꿔 여러 번 검색해라.',
     '결과는 영상 대본 작성에 바로 참고할 수 있도록, 핵심 사실·수치·날짜·출처를 8~12개의 한국어 불릿으로 정리해라.',
     '각 불릿 끝에 (출처: OO) 형식으로 출처를 붙여라.',
     '검색 결과로 확인 안 되는 내용, 특히 정확한 날짜·버전 번호는 절대 추측해서 쓰지 말고 그냥 제외해라. 항목이 적어도 괜찮다 — 확인된 사실만 남겨라.',
@@ -82,7 +85,15 @@ async function researchWithOpenAI(params: { dateLabel: string; topic?: string; k
   }
 }
 
-/** 폴백/대체 provider: Claude + 서버사이드 web_search 툴. tool_choice 로 검색을 강제한다. */
+/**
+ * 폴백/대체 provider: Claude + 서버사이드 web_search 툴.
+ *
+ * tool_choice 로 검색을 강제하지 않는다 — web_search_20260209 는 동적 필터링(내부적으로
+ * 코드 실행)을 쓰는 툴이라 모델이 직접 호출하는 형태가 아니어서, tool_choice 로 지목하면
+ * 400 "this tool only allows calls from ['code_execution_...']" 로 매번 실패했다.
+ * (그 탓에 리서치가 항상 조용히 빈 값으로 떨어져 대본이 검색 없이 쓰이고 있었다.)
+ * 대신 시스템 프롬프트에서 "반드시 검색부터 하라"고 강하게 지시한다.
+ */
 async function researchWithClaude(params: { dateLabel: string; topic?: string; kind?: 'topic' | 'landscape' }): Promise<string> {
   const { dateLabel, topic, kind } = params;
   const client = new Anthropic({ apiKey: config.anthropicApiKey() });
@@ -93,7 +104,6 @@ async function researchWithClaude(params: { dateLabel: string; topic?: string; k
       max_tokens: 4000,
       thinking: { type: 'adaptive' },
       tools: [{ type: 'web_search_20260209', name: 'web_search', max_uses: 6 }],
-      tool_choice: { type: 'tool', name: 'web_search' },
       system: RESEARCH_INSTRUCTIONS,
       messages: [{ role: 'user', content: researchPrompt(dateLabel, query) }],
     });
