@@ -19,6 +19,17 @@ export const PRICE = {
   usdKrw: Number(process.env.USD_KRW || 1380),
 };
 
+// 비용 상한 — 넘으면 실행을 아예 시작하지 않는다. 원화로 잡고 내부에서 달러로 환산한다
+// (사용자가 체감하는 단위가 원화라, 환율이 바뀌어도 의도한 한도가 유지되게).
+export const LIMITS = {
+  // 유료 실행 전면 차단 스위치(비상정지).
+  spendEnabled: String(process.env.SPEND_ENABLED || 'true').toLowerCase() !== 'false',
+  // 실행 1회 예상 비용 상한(원). 견적이 이보다 크면 트리거를 거부한다.
+  perRunKrw: Number(process.env.LIMIT_PER_RUN_KRW || 1500),
+  // 하루 누적 사용액 상한(원). 오늘 이미 이만큼 썼으면 더 실행하지 않는다.
+  perDayKrw: Number(process.env.LIMIT_PER_DAY_KRW || 5000),
+};
+
 /** 사용량 합계 → 달러. 필드가 없으면 0으로 친다. */
 export function cost(t) {
   return (

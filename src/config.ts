@@ -124,6 +124,14 @@ export const config = {
   // Nano Banana 2. 더 좋은 결과가 필요하면 gemini-3-pro-image(장당 약 2배).
   geminiImageModel: optional('GEMINI_IMAGE_MODEL', 'gemini-3.1-flash-image'),
 
+  // ── 비용 안전장치 ──
+  // 유료 API 호출 전면 차단 스위치. false 면 대본·나레이션·이미지 어느 것도 호출하지 않는다.
+  // 요금이 새는 것 같을 때 코드를 안 고치고 즉시 멈출 수 있는 비상정지 장치.
+  spendEnabled: optional('SPEND_ENABLED', 'true').toLowerCase() !== 'false',
+  // 실행 1회에 만들 수 있는 AI 이미지 최대 장수. 대본이 씬을 몇 개 만드느냐에 따라
+  // 장수가 정해지는 구조라, 상한이 없으면 한 편이 폭주해 요금이 몇 배로 뛴다.
+  maxImagesPerRun: Number(optional('MAX_IMAGES_PER_RUN', '6')),
+
   // 씬 일러스트 화풍(src/lib/artStyle.ts). auto 면 날짜 기준으로 회차마다 다르게 고른다.
   artStyle: optional('ART_STYLE', 'isometric').toLowerCase(),
   // 나레이션 말투(src/lib/tone.ts): documentary | humorous | storytelling | mystery

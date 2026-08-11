@@ -3,7 +3,8 @@
 // (서버리스 함수에서 파일을 내려받아 압축을 푸는 건 느리고 비싸다).
 //
 // 단가/계산은 사전 견적(/api/estimate)과 공유한다 — 두 화면이 다른 금액을 보이면 안 되므로.
-import { PRICE, cost, r6 } from '../lib/pricing.js';
+import { PRICE, LIMITS, cost, r6 } from '../lib/pricing.js';
+import { fetchUsageRuns, spentOnDay } from '../lib/usage.js';
 
 export default async function handler(req, res) {
   const { GITHUB_TOKEN, GITHUB_REPO } = process.env;
@@ -12,36 +13,10 @@ export default async function handler(req, res) {
   }
 
   // 아티팩트는 보존기간이 지나면 사라진다 — 그 이전 실행은 집계에서 빠진다는 뜻이라 함께 알린다.
-  const r = await fetch(`https://api.github.com/repos/${GITHUB_REPO}/actions/artifacts?per_page=100`, {
-    headers: {
-      Authorization: `Bearer ${GITHUB_TOKEN}`,
-      Accept: 'application/vnd.github+json',
-      'X-GitHub-Api-Version': '2022-11-28',
-    },
-  });
-  if (!r.ok) {
-    const detail = await r.text().catch(() => '');
-    return res.status(502).json({ error: `아티팩트 조회 실패 (${r.status})`, detail: detail.slice(0, 200) });
-  }
-  const { artifacts = [] } = await r.json();
+  const runs = await fetchUsageRuns({ token: GITHUB_TOKEN, repo: GITHUB_REPO });
 
-  const num = (name, key) => {
-    const m = name.match(new RegExp(`__${key}-(\\d+)`));
-    return m ? Number(m[1]) : 0;
-  };
-
-  const runs = [];
   let ci = 0, co = 0, oi = 0, oo = 0, img = 0, gimg = 0, tts = 0;
-  for (const a of artifacts) {
-    if (!a.name.startsWith('usage__') || a.expired) continue;
-    const e = {
-      at: a.created_at,
-      claudeIn: num(a.name, 'ci'), claudeOut: num(a.name, 'co'),
-      openaiIn: num(a.name, 'oi'), openaiOut: num(a.name, 'oo'),
-      images: num(a.name, 'img'), geminiImages: num(a.name, 'gimg'), ttsChars: num(a.name, 'tts'),
-    };
-    e.usd = cost(e);
-    runs.push(e);
+  for (const e of runs) {
     ci += e.claudeIn; co += e.claudeOut; oi += e.openaiIn; oo += e.openaiOut;
     img += e.images; gimg += e.geminiImages; tts += e.ttsChars;
   }
@@ -62,6 +37,12 @@ export default async function handler(req, res) {
     usd: r6(usd),
     krw: Math.round(usd * PRICE.usdKrw),
     price: PRICE,
+    // 오늘 쓴 금액과 상한 — 하루 상한에 얼마나 다가갔는지 화면에서 바로 보이게.
+    today: {
+      krw: Math.round(spentOnDay(runs) * PRICE.usdKrw),
+      limitKrw: LIMITS.perDayKrw,
+    },
+    limits: LIMITS,
     note: '아티팩트 보존기간(90일)이 지난 실행은 집계에서 빠집니다. 단가는 환경변수로 조정하세요.',
     recent: runs.slice(0, 20),
   });

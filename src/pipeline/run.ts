@@ -306,8 +306,18 @@ async function stepRender(): Promise<void> {
       (s.visual === 'code' && Boolean(s.code)) ||
       ((s.visual === 'title' || s.visual === 'outro') && Boolean(s.icon)) ||
       s.visual === 'quote';
-    const needsAiImage = manifest.scenes.filter((s) => !isCodeRendered(s));
-    console.log(`  · 씬별 흑백 일러스트 생성 중... (${needsAiImage.length}/${manifest.scenes.length}, 도식/비교/불릿/인용/아이콘 씬은 코드 렌더링으로 대체)`);
+    const wantsAiImage = manifest.scenes.filter((s) => !isCodeRendered(s));
+    // 장수 상한 — 대본이 그림 씬을 몇 개 만드느냐에 따라 요금이 정해지는 구조라,
+    // 상한이 없으면 한 편이 폭주한다. 넘치는 씬은 그림 없이(글자 화면으로) 렌더된다.
+    const cap = Math.max(0, config.maxImagesPerRun);
+    const needsAiImage = wantsAiImage.slice(0, cap);
+    if (wantsAiImage.length > needsAiImage.length) {
+      console.warn(
+        `  ⚠ 그림 씬 ${wantsAiImage.length}개 중 ${needsAiImage.length}개만 생성합니다 ` +
+          `(MAX_IMAGES_PER_RUN=${cap} 상한). 나머지 ${wantsAiImage.length - needsAiImage.length}개는 글자 화면으로 렌더됩니다.`,
+      );
+    }
+    console.log(`  · 씬별 일러스트 생성 중... (${needsAiImage.length}/${manifest.scenes.length}, 도식/비교/불릿/인용/아이콘 씬은 코드 렌더링으로 대체)`);
     // manifest.theme(다크로 정해졌으면) 에 맞춰 AI 일러스트도 색을 반전해, title/outro 씬만
     // 흰 배경으로 튀지 않고 영상 전체가 한 톤으로 보이게 한다.
     const imgMap = await generateIllustrations(needsAiImage, manifest.theme === 'dark');
@@ -482,6 +492,16 @@ async function main() {
   const only = onlyArg?.split('=')[1] as Step | undefined;
 
   const steps: Step[] = only ? [only] : ['script', 'voice', 'render', 'upload'];
+
+  // 비상정지 — 유료 호출이 하나라도 있는 단계면 시작 전에 막는다.
+  // (upload/setprivacy 등은 유튜브 API라 과금이 없어 통과시킨다.)
+  const PAID_STEPS: Step[] = ['script', 'voice', 'render', 'thumbnail', 'rethumb'];
+  if (!config.spendEnabled && steps.some((s) => PAID_STEPS.includes(s))) {
+    throw new Error(
+      'SPEND_ENABLED=false 이므로 유료 API 를 호출하는 단계를 실행하지 않습니다. ' +
+        '다시 쓰려면 SPEND_ENABLED 를 true 로 되돌리세요.',
+    );
+  }
 
   for (const step of steps) {
     if (step === 'script') await stepScript();

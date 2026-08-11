@@ -2,6 +2,10 @@
 // GITHUB_TOKEN 은 서버(함수)에만 있고 브라우저에 노출되지 않는다.
 // 허용값 목록은 src/lib/artStyle.ts / src/lib/tone.ts 의 프리셋 id 와 일치해야 한다.
 // (여기서 걸러진 값만 워크플로로 넘어가고, 나머지는 기본값으로 떨어진다.)
+import { PRICE, LIMITS } from '../lib/pricing.js';
+import { fetchUsageRuns, spentOnDay } from '../lib/usage.js';
+import { estimateRun } from '../lib/estimate.js';
+
 const ART_STYLES = ['auto', 'isometric', 'comic', 'watercolor', 'cinematic', 'retro', 'clay', 'pixar'];
 const TONES = ['documentary', 'humorous', 'storytelling', 'mystery'];
 // src/lib/agency.ts 의 id 목록과 동일하게 유지 (web/ 은 src/ 를 import 하지 않는 별도 배포 대상이라 중복 보관).
@@ -27,6 +31,45 @@ export default async function handler(req, res) {
 
   if (APP_PASSWORD && body.password !== APP_PASSWORD) {
     return res.status(401).json({ error: '앱 비밀번호가 올바르지 않습니다' });
+  }
+
+  // ── 비용 안전장치 ── 트리거하기 전에 막는다. 일단 실행되면 중간에 세울 방법이 없다.
+  if (!LIMITS.spendEnabled) {
+    return res.status(403).json({
+      error: '비용 차단(SPEND_ENABLED=false)이 켜져 있어 실행할 수 없습니다.',
+      hint: '다시 쓰려면 Vercel 환경변수 SPEND_ENABLED 를 true 로 되돌리세요.',
+    });
+  }
+
+  const willResearch = String(body.topic || '').trim() !== '' || body.mode === 'trend';
+  const est = estimateRun({
+    minutes: Math.max(1, Math.min(20, Number(body.minutes) || 1)),
+    research: willResearch,
+  });
+  if (est.krw > LIMITS.perRunKrw) {
+    return res.status(403).json({
+      error: `예상 비용 ${est.krw.toLocaleString()}원이 1회 상한 ${LIMITS.perRunKrw.toLocaleString()}원을 넘습니다.`,
+      hint: '길이를 줄이거나, 상한(LIMIT_PER_RUN_KRW)을 조정하세요.',
+      estimateKrw: est.krw,
+      limitKrw: LIMITS.perRunKrw,
+    });
+  }
+
+  // 하루 누적 — 아티팩트 집계라 조회 실패 시엔 통과시킨다(집계 불가로 실행을 막지는 않는다).
+  try {
+    const runs = await fetchUsageRuns({ token: GITHUB_TOKEN, repo: GITHUB_REPO });
+    const spentKrw = Math.round(spentOnDay(runs) * PRICE.usdKrw);
+    if (spentKrw + est.krw > LIMITS.perDayKrw) {
+      return res.status(403).json({
+        error: `오늘 이미 ${spentKrw.toLocaleString()}원을 썼습니다. 이번 실행(${est.krw.toLocaleString()}원)을 더하면 하루 상한 ${LIMITS.perDayKrw.toLocaleString()}원을 넘습니다.`,
+        hint: '내일 다시 실행하거나, 상한(LIMIT_PER_DAY_KRW)을 조정하세요.',
+        spentTodayKrw: spentKrw,
+        estimateKrw: est.krw,
+        limitKrw: LIMITS.perDayKrw,
+      });
+    }
+  } catch {
+    /* 집계 실패는 무시 — 상한 검사 때문에 정상 실행이 막히면 더 곤란하다 */
   }
 
   // 키 이름을 하나만 받으면, 다른 이름으로 보낸 값이 "조용히 무시"된다.
