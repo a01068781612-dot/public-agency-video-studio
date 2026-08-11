@@ -40,6 +40,10 @@ on:
         description: '홍보 타겟 기관(src/lib/agency.ts 의 id, 예: moe/molit/police). 비우면 특정 기관 없음'
         required: false
         default: ''
+      target_minutes:
+        description: '영상 길이(분). 비우면 저장소 변수 또는 기본값'
+        required: false
+        default: ''
   # 웹앱/외부에서 트리거 (client_payload 로 topic 전달)
   repository_dispatch:
     types: [publish-video]
@@ -82,7 +86,9 @@ jobs:
       CONTENT_MODE: ${{ github.event.inputs.content_mode || github.event.client_payload.content_mode || vars.CONTENT_MODE || 'auto' }}
       # 대본 난이도/전문성: basic | intermediate | expert. 기본 expert(전문가용).
       CONTENT_LEVEL: ${{ github.event.inputs.content_level || github.event.client_payload.content_level || vars.CONTENT_LEVEL || 'expert' }}
-      TARGET_MINUTES: ${{ github.event.client_payload.target_minutes || vars.TARGET_MINUTES || '10' }}
+      # 수동 실행에서도 길이를 지정할 수 있어야 한다 — inputs 를 안 보던 탓에 CLI/수동 실행은
+      # 길이를 뭘 주든 무시하고 항상 기본값(10분)으로 렌더됐다.
+      TARGET_MINUTES: ${{ github.event.inputs.target_minutes || github.event.client_payload.target_minutes || vars.TARGET_MINUTES || '10' }}
       CONTENT_LANGUAGE: ${{ vars.CONTENT_LANGUAGE || 'ko' }}
       # 나레이션 배속(1=원속). 조금 빠르게 읽어 정보 밀도를 높인다.
       NARRATION_SPEED: ${{ github.event.client_payload.speed || vars.NARRATION_SPEED || '1.12' }}

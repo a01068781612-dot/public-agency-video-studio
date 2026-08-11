@@ -2,23 +2,8 @@
 // 아티팩트 이름에 숫자를 넣어두면 zip 을 풀지 않고 목록 조회만으로 집계할 수 있다
 // (서버리스 함수에서 파일을 내려받아 압축을 푸는 건 느리고 비싸다).
 //
-// 단가는 계정 요금제마다 다르므로 환경변수로 받는다. 아래 기본값은 공개 정가 기준의
-// "대략치"이므로, 정확한 금액이 필요하면 Vercel 환경변수로 실제 단가를 넣어야 한다.
-const PRICE = {
-  // Claude Opus 4.8 — 100만 토큰당 달러
-  claudeIn: Number(process.env.PRICE_CLAUDE_IN || 5),
-  claudeOut: Number(process.env.PRICE_CLAUDE_OUT || 25),
-  // 리서치용 저가 모델 — 100만 토큰당 달러
-  openaiIn: Number(process.env.PRICE_OPENAI_IN || 0.4),
-  openaiOut: Number(process.env.PRICE_OPENAI_OUT || 1.6),
-  // 썸네일 이미지(OpenAI) — 장당 달러
-  image: Number(process.env.PRICE_IMAGE || 0.19),
-  // Gemini 이미지(Nano Banana 2, 1K) — 장당 달러. 공개 정가 기준 대략치.
-  geminiImage: Number(process.env.PRICE_GEMINI_IMAGE || 0.067),
-  // TTS — 1000자당 달러
-  tts1k: Number(process.env.PRICE_TTS_1K || 0.22),
-  usdKrw: Number(process.env.USD_KRW || 1380),
-};
+// 단가/계산은 사전 견적(/api/estimate)과 공유한다 — 두 화면이 다른 금액을 보이면 안 되므로.
+import { PRICE, cost, r6 } from '../lib/pricing.js';
 
 export default async function handler(req, res) {
   const { GITHUB_TOKEN, GITHUB_REPO } = process.env;
@@ -82,13 +67,3 @@ export default async function handler(req, res) {
   });
 }
 
-function cost(t) {
-  return (
-    ((t.claudeIn * PRICE.claudeIn + t.claudeOut * PRICE.claudeOut) / 1e6) +
-    ((t.openaiIn * PRICE.openaiIn + t.openaiOut * PRICE.openaiOut) / 1e6) +
-    (t.images * PRICE.image) +
-    ((t.geminiImages || 0) * PRICE.geminiImage) +
-    ((t.ttsChars / 1000) * PRICE.tts1k)
-  );
-}
-const r6 = (n) => Math.round(n * 1e6) / 1e6;
