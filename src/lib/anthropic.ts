@@ -78,7 +78,13 @@ export async function generateScript(params: {
   // 모델이 총량을 무시하고 씬당 ~90자만 써서 10분 목표가 4분대로 나오는 심각한 미달이 있었다.
   // 여유를 둬 분당 460자로 잡고(≈ 10분이면 4,600자), 아래 요구사항에서 이 총량을 "반드시 채워야 하는
   // 하한"으로 강하게 못박는다.
-  const targetChars = Math.round(targetMinutes * 460);
+  // 분량 환산 — 실측값이다. 지난 렌더(4,202자 / 745초)에서 역산하면 씬 여백까지 포함해
+  // 초당 5.64자로 읽힌다. 예전엔 "초당 7자(분당 460자)"로 잡혀 있었는데 그러면 1분 목표가
+  // 실제 82초로 나와 상한을 넘었다. 여유를 조금 두고 분당 330자로 잡는다.
+  const targetChars = Math.round(targetMinutes * 330);
+  // 1분 이하 숏폼은 "넘치면 안 되는" 상한 관리가 핵심이다(쇼츠 60초 제한).
+  // 반대로 긴 영상은 예나 지금이나 "모자라는" 게 문제라, 두 경우의 지시가 정반대다.
+  const isCapped = targetMinutes <= 1;
 
   // 씬 개수도 분량에 비례해야 한다 — 예전엔 "28~40개"로 고정돼 있어서, 1~3분짜리 홍보용
   // 짧은 영상에 그대로 적용하면 씬 하나가 몇 초짜리로 쪼개져 만들 수 없는 지시가 됐다.
@@ -143,9 +149,13 @@ export async function generateScript(params: {
     researchBlock,
     '',
     '요구사항:',
-    `- ★가장 흔한 실패 = 분량 미달★ 전체 나레이션 합계 글자 수(공백 포함)는 반드시 약 ${targetChars}자 이상이어야 한다. 한국어 나레이션은 초당 약 7자로 읽혀서 ${targetChars}자라야 ${targetMinutes}분이 나온다. 이보다 짧게 쓰면 영상이 목표의 절반짜리로 나와 완전히 실패다 — 씬 수를 충분히 늘리고 각 씬 나레이션을 충분히 길게 써서 이 총량을 반드시 채워라.${isBrief ? ' 브리핑 내용이 많으면 이보다 더 길어도 좋다(분량보다 완전 반영 우선).' : ''}`,
+    isCapped
+      ? `- ★분량 상한을 반드시 지켜라★ 전체 나레이션 합계 글자 수(공백 포함)는 ${targetChars}자를 절대 넘기지 마라. 한국어 나레이션은 초당 약 5.6자로 읽혀서 ${targetChars}자면 딱 ${targetMinutes}분이고, 넘기면 영상이 길이 제한을 초과해 못 쓴다. ${Math.round(targetChars * 0.85)}~${targetChars}자 사이로 맞춘다. 담을 내용이 많으면 내용을 줄여라 — 분량을 늘리는 선택지는 없다.`
+      : `- ★가장 흔한 실패 = 분량 미달★ 전체 나레이션 합계 글자 수(공백 포함)는 반드시 약 ${targetChars}자 이상이어야 한다. 한국어 나레이션은 초당 약 5.6자로 읽혀서 ${targetChars}자라야 ${targetMinutes}분이 나온다. 이보다 짧게 쓰면 영상이 목표의 절반짜리로 나와 완전히 실패다 — 씬 수를 충분히 늘리고 각 씬 나레이션을 충분히 길게 써서 이 총량을 반드시 채워라.${isBrief ? ' 브리핑 내용이 많으면 이보다 더 길어도 좋다(분량보다 완전 반영 우선).' : ''}`,
     `- 씬(scenes)은 ${sceneMin}~${sceneMax}개로 나눈다(단계형 내용은 단계당 1씬). 씬이 적으면 위 총 글자수를 못 채운다.${isBrief ? ' 브리핑 내용이 많으면 이 범위를 넘겨도 좋다(분량보다 완전 반영 우선).' : ''}`,
-    '- 한 씬의 narration 은 2~4문장, 대략 120~200자로 충분히 쓴다 — 한 문장만 달랑 쓰면 영상이 짧아지는 주된 원인이 된다. (예외: quote 씬만은 한 문장 임팩트로 짧게 쓴다.)',
+    isCapped
+      ? `- 한 씬의 narration 은 1~2문장, 대략 ${Math.round(targetChars / sceneMax)}~${Math.round(targetChars / sceneMin)}자로 짧게 쓴다. 총량 상한이 있으므로 씬을 늘리면 씬당 길이를 줄여야 한다.`
+      : '- 한 씬의 narration 은 2~4문장, 대략 120~200자로 충분히 쓴다 — 한 문장만 달랑 쓰면 영상이 짧아지는 주된 원인이 된다. (예외: quote 씬만은 한 문장 임팩트로 짧게 쓴다.)',
     '- 첫 씬은 visual="title" 로 후킹 도입(왜 이 주제가 중요한지)을 담는다. visual="title" 은 이 영상 전체에서 딱 이 첫 씬 한 번만 쓴다 — 중간에 장/화제를 전환하고 싶어도 title 을 또 쓰지 마라(그러면 그 씬마다 AI 그림 한 장 + 줌 효과가 반복돼 영상 전체가 "맨날 같은 그림"처럼 보이는 가장 큰 원인이 된다). 장 전환이 필요하면 quote(소제목이나 전환 문장을 강조 문구로) 또는 bullets 를 대신 써라.',
     '- 중간 씬은 illustration / bullets / diagram / comparison / quote / code 여섯 가지로 구성한다(title 은 위에서 말했듯 중간에 쓰지 않는다).',
     '- ★가장 중요★ visual="illustration" 은 실제 장면을 그린 그림 한 장이 화면을 채우는 씬이고, 나머지 다섯 종류는 전부 글자·도형만 나오는 화면이다. 그래서 illustration 이 적으면 영상 전체가 "글자만 나오는 영상"이 되어 홍보물로 쓸 수 없다. 중간 씬의 절반 이상(최소 50%)을 illustration 으로 채워라. 사건 현장, 사람들이 일하는 모습, 장비·시설·서류 같은 실물이 등장하는 대목은 무조건 illustration 으로 간다.',
@@ -241,15 +251,22 @@ export async function generateScript(params: {
 
   // 분량 미달(목표의 70% 미만) 방지 — 모델이 "짧게" 지침에 과반응해 총량을 놓치는 흔한 실패를
   // 한 번의 재생성으로 교정한다. 더 긴 쪽을 채택(재생성이 오히려 짧으면 첫 결과를 유지).
-  if (chars < targetChars * 0.82) {
-    console.log(`[대본] 분량 미달 → 더 길게 재생성 시도`);
+  // 상한 모드(1분 이하)는 "넘친" 경우를, 그 외에는 "모자란" 경우를 교정한다 — 방향이 정반대다.
+  // 상한 모드에서 예전 로직을 그대로 두면 오히려 더 길게 다시 쓰게 만들어 길이 제한을 깬다.
+  const tooLong = isCapped && chars > targetChars;
+  const tooShort = !isCapped && chars < targetChars * 0.82;
+  if (tooLong || tooShort) {
+    console.log(tooLong ? `[대본] 분량 초과 → 더 짧게 재생성 시도` : `[대본] 분량 미달 → 더 길게 재생성 시도`);
     try {
       const retry = await runOnceResilient(
-        `\n\n[중요·재작성 지시] 직전 시도가 총 ${chars}자로 목표(${targetChars}자)의 절반 수준밖에 안 돼 영상이 너무 짧다. 이번엔 씬 수를 ${sceneMax}개 이상으로 늘리고 각 씬 나레이션을 2~4문장(120~200자)으로 충분히 써서 총 ${targetChars}자 이상을 반드시 채워라. (quote 씬만 짧게.)`,
+        tooLong
+          ? `\n\n[중요·재작성 지시] 직전 시도가 총 ${chars}자로 상한(${targetChars}자)을 넘겼다. 이대로면 영상이 길이 제한을 초과한다. 씬 수를 ${sceneMin}~${sceneMax}개로 유지하되 각 씬 나레이션을 더 짧게 줄여서 총 ${targetChars}자 이하로 다시 써라. 내용을 덜 담더라도 분량을 반드시 지켜라.`
+          : `\n\n[중요·재작성 지시] 직전 시도가 총 ${chars}자로 목표(${targetChars}자)의 절반 수준밖에 안 돼 영상이 너무 짧다. 이번엔 씬 수를 ${sceneMax}개 이상으로 늘리고 각 씬 나레이션을 2~4문장(120~200자)으로 충분히 써서 총 ${targetChars}자 이상을 반드시 채워라. (quote 씬만 짧게.)`,
       );
       const retryChars = totalChars(retry);
       console.log(`[대본] 재생성 결과 총 ${retryChars}자 (씬 ${retry.scenes.length}개)`);
-      if (retryChars > chars) {
+      // 상한 모드면 "더 짧아졌을 때", 그 외엔 "더 길어졌을 때"만 채택한다.
+      if (tooLong ? retryChars < chars : retryChars > chars) {
         script = retry;
         chars = retryChars;
       }

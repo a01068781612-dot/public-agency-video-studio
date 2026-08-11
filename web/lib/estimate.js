@@ -10,8 +10,8 @@ export const MODEL = {
   // 대본 생성: 입력은 대체로 고정, 출력(사고 토큰 포함)은 분량에 비례.
   scriptIn: Number(process.env.EST_SCRIPT_IN || 7500),
   scriptOutPerMin: Number(process.env.EST_SCRIPT_OUT_PER_MIN || 2500),
-  // 나레이션 글자수 — src/lib/anthropic.ts 의 targetChars(분당 460자)와 같은 기준.
-  charsPerMin: Number(process.env.EST_CHARS_PER_MIN || 460),
+  // 나레이션 글자수 — src/lib/anthropic.ts 의 targetChars 와 같은 기준(실측 분당 330자).
+  charsPerMin: Number(process.env.EST_CHARS_PER_MIN || 330),
   // 이미지 장수 — 파이프라인의 MAX_IMAGES_PER_RUN 상한과 같은 값으로 맞춘다.
   // (분량이 짧으면 실제로는 더 적게 나오지만, 견적은 최악을 보여주는 쪽이 안전하다.)
   images: Number(process.env.MAX_IMAGES_PER_RUN || 6),
