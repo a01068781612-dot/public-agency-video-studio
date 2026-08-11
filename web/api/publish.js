@@ -4,6 +4,13 @@
 // (여기서 걸러진 값만 워크플로로 넘어가고, 나머지는 기본값으로 떨어진다.)
 const ART_STYLES = ['auto', 'isometric', 'comic', 'watercolor', 'cinematic', 'retro', 'clay', 'pixar'];
 const TONES = ['documentary', 'humorous', 'storytelling', 'mystery'];
+// src/lib/agency.ts 의 id 목록과 동일하게 유지 (web/ 은 src/ 를 import 하지 않는 별도 배포 대상이라 중복 보관).
+const AGENCIES = [
+  'moef', 'moe', 'msit', 'mofa', 'unikorea', 'moj', 'mnd', 'mois', 'mpva', 'mcst',
+  'mafra', 'motie', 'mohw', 'me', 'moel', 'mogef', 'molit', 'mof', 'mss',
+  'nts', 'customs', 'pps', 'kostat', 'spo', 'mma', 'dapa', 'police', 'nfa', 'khs',
+  'rda', 'kfs', 'kipo', 'kdca', 'kma', 'kcg', 'saemangeum', 'nacc', 'kasa', 'okva',
+];
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -53,13 +60,15 @@ export default async function handler(req, res) {
     art_style: ART_STYLES.includes(pick('art', 'art_style')) ? pick('art', 'art_style') : '',
     // 나레이션 말투(src/lib/tone.ts).
     narration_tone: TONES.includes(pick('tone', 'narration_tone')) ? pick('tone', 'narration_tone') : '',
+    // 홍보 타겟 기관(src/lib/agency.ts). 목록에 없는 값은 빈 값으로 떨어뜨려 특정 기관 없음으로 처리.
+    agency: AGENCIES.includes(body.agency) ? body.agency : '',
   };
 
   // 알 수 없는 키가 섞여 오면 조용히 버리지 말고 응답에 알려준다(오타로 인한 설정 유실 방지).
   const KNOWN = new Set([
     'topic', 'mode', 'content_mode', 'level', 'content_level', 'upload', 'do_upload',
     'minutes', 'target_minutes', 'channel', 'privacy', 'style', 'speed', 'narration_speed', 'password',
-    'art', 'art_style', 'tone', 'narration_tone',
+    'art', 'art_style', 'tone', 'narration_tone', 'agency',
   ]);
   const ignored = Object.keys(body).filter((k) => !KNOWN.has(k));
 
@@ -89,6 +98,7 @@ export default async function handler(req, res) {
       speed: client_payload.speed || '(워크플로 기본값)',
       art_style: client_payload.art_style || '(워크플로 기본값)',
       narration_tone: client_payload.narration_tone || '(워크플로 기본값)',
+      agency: client_payload.agency || '(지정 안 함)',
     },
     ...(ignored.length ? { ignoredKeys: ignored } : {}),
   });

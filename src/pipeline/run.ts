@@ -23,6 +23,7 @@ import {
 } from '../config.js';
 import { ScriptSchema, type Script, type RenderManifest, type SceneWithAudio } from '../schema.js';
 import { generateScript } from '../lib/anthropic.js';
+import { resolveAgency } from '../lib/agency.js';
 import { generateDeck } from '../lib/deckgen.js';
 import { researchRecentInfo } from '../lib/research.js';
 import { synthesizeSpeech } from '../lib/elevenlabs.js';
@@ -76,8 +77,10 @@ async function stepScript(): Promise<Script> {
     /* 없으면 무시 */
   }
 
+  const agency = resolveAgency(config.targetAgency);
   const topicLabel = config.customTopic ? `주제="${config.customTopic}"` : `모드=${mode}`;
-  console.log(`▶ [1/4] 대본 생성 (${topicLabel}, ${config.targetMinutes}분, 난이도=${config.contentLevel})`);
+  const agencyLabel = agency ? `, 대상기관=${agency.label}` : '';
+  console.log(`▶ [1/4] 대본 생성 (${topicLabel}${agencyLabel}, ${config.targetMinutes}분, 난이도=${config.contentLevel})`);
 
   // 상세 브리핑(긴 글)은 그 자체가 콘텐츠 명세라 리서치가 불필요하다.
   // 그 외(자동 트렌드 모드, 또는 사용자가 짧게 지정한 주제)는 웹서치로 최신 정보를 조사해
@@ -87,9 +90,11 @@ async function stepScript(): Promise<Script> {
   let research: string | undefined;
   if (!isBriefTopic) {
     if (customTopic || mode === 'trend') {
-      // 주제 지정/트렌드 모드: 그 주제의 최신 소식을 조사.
+      // 주제 지정/트렌드 모드: 그 주제의 최신 소식을 조사. 대상기관이 있고 주제가 없으면
+      // 그 기관 소관 분야와 AI 의 접점을 검색어로 삼아 리서치도 처음부터 그쪽으로 잡는다.
       console.log('  · 최신 정보 웹서치 조사 중...');
-      research = await researchRecentInfo({ dateLabel, topic: customTopic });
+      const researchTopic = customTopic ?? (agency ? `AI와 ${agency.domain}` : undefined);
+      research = await researchRecentInfo({ dateLabel, topic: researchTopic });
     } else {
       // basics(기초 개념) 모드: 주제는 모델이 자동으로 고르므로 특정 주제 검색은 못 하지만,
       // "지금 현재의 최신 모델 지형"을 미리 조사해 넘긴다 — 안 그러면 학습 시점(≈2024) 지식으로
@@ -125,6 +130,7 @@ async function stepScript(): Promise<Script> {
     dateLabel,
     recentTitles,
     customTopic,
+    agencyId: config.targetAgency,
     research,
   });
 

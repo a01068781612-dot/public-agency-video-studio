@@ -5,6 +5,7 @@ import { ScriptSchema, type Script } from '../schema.js';
 import { recordUsage } from './usage.js';
 import { buildToneGuide, resolveTone } from './tone.js';
 import { resolveArtStyle } from './artStyle.js';
+import { resolveAgency, buildAgencyGuide } from './agency.js';
 
 /** 출력 길이 초과로 JSON 이 도중에 잘렸을 때의 표식 — 이 메시지로 재시도 여부를 판단한다. */
 const TRUNCATED_MSG = '대본 JSON 이 출력 도중 잘렸습니다(출력 길이 초과).';
@@ -21,12 +22,15 @@ export async function generateScript(params: {
   dateLabel: string;
   recentTitles?: string[];
   customTopic?: string;
+  /** 홍보 타겟 기관(src/lib/agency.ts id). 지정하면 주제·사례 선택이 그 기관 소관 분야 쪽으로 쏠린다. */
+  agencyId?: string;
   /** 웹서치로 미리 조사한 최신 정보 요약(research.ts) — 있으면 대본에 사실관계를 반영. */
   research?: string;
 }): Promise<Script> {
   const client = new Anthropic({ apiKey: config.anthropicApiKey() });
 
-  const { mode, targetMinutes, language, dateLabel, recentTitles = [], customTopic, research } = params;
+  const { mode, targetMinutes, language, dateLabel, recentTitles = [], customTopic, agencyId, research } = params;
+  const agency = resolveAgency(agencyId);
 
   // customTopic 이 한 줄 주제가 아니라 상세 브리핑(설치 방법·단계·목록 등)일 수 있다.
   // 그런 경우 Claude 가 자기 판단으로 요약·생략하지 않도록, 원문 내용을 빠짐없이 충실히 반영하게 강제한다.
@@ -97,6 +101,7 @@ export async function generateScript(params: {
   const system = [
     '너는 국가기관·공공기관 홍보담당자를 위한 AI 트렌드 브리핑 채널의 수석 작가이자 연출가다.',
     '이 채널의 목적은 홍보담당자가 이 영상을 보고 실제 보도자료·SNS 홍보물·내부 보고에 바로 활용할 수 있게 돕는 것이다. 모든 설명은 "이 사실을 공식 커뮤니케이션에 어떻게 정확히 표현할지"를 염두에 두고 쓴다.',
+    ...(agency ? [buildAgencyGuide(agency)] : []),
     `영상은 씬마다 "${artStyle.label} 화풍의 삽화 한 장 + 화면 하단 자막(나레이션) + 배경음악"으로 구성되는 설명 영상이다. (손그림/판서/플래시 애니메이션이 아니다.)`,
     'diagram/comparison 씬은 그림 대신 코드로 그린 등각 모션 그래픽(떠 있는 원반+라벨 카드, 화살표)이 자동으로 들어간다.',
     '시청자는 한국어 사용자다. 흥미롭게, 그러나 정확하고 밀도 있게 설명해야 한다.',

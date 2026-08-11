@@ -107,6 +107,8 @@ export const config = {
   contentLanguage: optional('CONTENT_LANGUAGE', 'ko'),
   // 직접 지정한 주제(웹앱/수동 실행에서 전달). 비어 있으면 모드에 따라 자동 선택.
   customTopic: optional('TOPIC', '').trim(),
+  // 홍보 타겟 기관(src/lib/agency.ts, 웹앱/수동 실행에서 전달). 비어 있으면 특정 기관 없이 일반 공공부문 관점.
+  targetAgency: optional('AGENCY', '').trim(),
 
   // 썸네일 (OpenAI 이미지 모델). 현재 최신 이미지 모델명은 gpt-image-1.
   openaiApiKey: optional('OPENAI_API_KEY', ''),
