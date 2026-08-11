@@ -79,6 +79,14 @@ export async function generateScript(params: {
   // 하한"으로 강하게 못박는다.
   const targetChars = Math.round(targetMinutes * 460);
 
+  // 씬 개수도 분량에 비례해야 한다 — 예전엔 "28~40개"로 고정돼 있어서, 1~3분짜리 홍보용
+  // 짧은 영상에 그대로 적용하면 씬 하나가 몇 초짜리로 쪼개져 만들 수 없는 지시가 됐다.
+  // 씬 하나 나레이션을 평균 150자(가이드라인 120~200자의 중간)로 잡고 역산한다.
+  const isShortForm = targetMinutes <= 3;
+  const sceneMid = Math.max(3, Math.round(targetChars / 150));
+  const sceneMin = Math.max(3, sceneMid - Math.max(2, Math.round(sceneMid * 0.15)));
+  const sceneMax = sceneMid + Math.max(3, Math.round(sceneMid * 0.2));
+
   // 대본 난이도/전문성 (CONTENT_LEVEL). "너무 쉽게만 풀어줘서 전문적인 영상이 안 나온다"는
   // 피드백에 따라 기본값(expert)은 실무자 대상으로 깊이 있게 쓴다.
   const levelGuides: Record<string, string> = {
@@ -125,11 +133,13 @@ export async function generateScript(params: {
     '',
     '요구사항:',
     `- ★가장 흔한 실패 = 분량 미달★ 전체 나레이션 합계 글자 수(공백 포함)는 반드시 약 ${targetChars}자 이상이어야 한다. 한국어 나레이션은 초당 약 7자로 읽혀서 ${targetChars}자라야 ${targetMinutes}분이 나온다. 이보다 짧게 쓰면 영상이 목표의 절반짜리로 나와 완전히 실패다 — 씬 수를 충분히 늘리고 각 씬 나레이션을 충분히 길게 써서 이 총량을 반드시 채워라.${isBrief ? ' 브리핑 내용이 많으면 이보다 더 길어도 좋다(분량보다 완전 반영 우선).' : ''}`,
-    `- 씬(scenes)은 ${isBrief ? '26~40' : '28~40'}개로 잘게 나눈다(단계형 내용은 단계당 1씬). 씬이 적으면 위 총 글자수를 못 채운다.`,
+    `- 씬(scenes)은 ${sceneMin}~${sceneMax}개로 나눈다(단계형 내용은 단계당 1씬). 씬이 적으면 위 총 글자수를 못 채운다.${isBrief ? ' 브리핑 내용이 많으면 이 범위를 넘겨도 좋다(분량보다 완전 반영 우선).' : ''}`,
     '- 한 씬의 narration 은 2~4문장, 대략 120~200자로 충분히 쓴다 — 한 문장만 달랑 쓰면 영상이 짧아지는 주된 원인이 된다. (예외: quote 씬만은 한 문장 임팩트로 짧게 쓴다.)',
     '- 첫 씬은 visual="title" 로 후킹 도입(왜 이 주제가 중요한지)을 담는다. visual="title" 은 이 영상 전체에서 딱 이 첫 씬 한 번만 쓴다 — 중간에 장/화제를 전환하고 싶어도 title 을 또 쓰지 마라(그러면 그 씬마다 AI 그림 한 장 + 줌 효과가 반복돼 영상 전체가 "맨날 같은 그림"처럼 보이는 가장 큰 원인이 된다). 장 전환이 필요하면 quote(소제목이나 전환 문장을 강조 문구로) 또는 bullets 를 대신 써라.',
     '- 중간 씬은 bullets / diagram / comparison / quote / code 다섯 가지만으로 구성한다(title 은 위에서 말했듯 중간에 쓰지 않는다). 한 영상에 한두 타입만 반복되지 않게 다섯 가지를 고루 번갈아 쓰고, 다루는 내용에 실제 파일/코드가 있으면 code 를, 여러 항목이 하나에 모이거나 퍼지는 관계면 diagram 을 적극 활용해라.',
-    '- ★단조로움 방지(반드시 지켜라)★ bullets 씬은 전체 중간 씬의 1/3(약 30%)을 넘기지 마라 — 직전 영상은 절반 이상이 bullets라 밋밋했다. 대신 다음 최소 개수를 반드시 채운다: diagram 최소 3개, comparison 최소 2개, quote 2~4개, code 최소 1개(소재가 있으면 2개 이상). 같은 타입이 세 씬 연속으로 오지 않게 번갈아 배치한다. 설명을 "여러 항목 나열"로 처리하고 싶을 때 습관적으로 bullets 를 쓰지 말고, 관계·흐름이면 diagram, 두 대상이면 comparison 으로 바꿔라.',
+    isShortForm
+      ? '- ★단조로움 방지★ 씬 수가 적은 짧은 영상이니 diagram/comparison/quote/code 를 억지로 다 채우려 하지 마라 — 내용에 실제로 맞는 타입 1~2가지만 자연스럽게 섞어라. 다만 중간 씬 전부를 bullets 하나로만 채우지는 말고, 최소 1개는 다른 타입(diagram/comparison/quote/code 중 내용에 맞는 것)을 넣는다.'
+      : '- ★단조로움 방지(반드시 지켜라)★ bullets 씬은 전체 중간 씬의 1/3(약 30%)을 넘기지 마라 — 직전 영상은 절반 이상이 bullets라 밋밋했다. 대신 다음 최소 개수를 반드시 채운다: diagram 최소 3개, comparison 최소 2개, quote 2~4개, code 최소 1개(소재가 있으면 2개 이상). 같은 타입이 세 씬 연속으로 오지 않게 번갈아 배치한다. 설명을 "여러 항목 나열"로 처리하고 싶을 때 습관적으로 bullets 를 쓰지 말고, 관계·흐름이면 diagram, 두 대상이면 comparison 으로 바꿔라.',
     '- visual="code" 는 이 대본에서 가장 중요한 "구체성" 장치다 — 다룰 대상에 실제로 존재하는 파일/설정/코드가 있다면(예: 스킬 정의 파일, 훅 스크립트, 플러그인 매니페스트, 설정 파일, API 요청 예시, 커맨드 한 줄) 말로 설명만 하지 말고 반드시 code 씬으로 화면에 그대로 보여준다. code 필드에 filename(실제 있을 법한 경로), language, code(실제 동작할 법한 8~14줄짜리 최소 예시, 지어내되 현실적이고 정확한 문법으로)를 채운다. 이런 소재가 있는 대본이면 최소 1개 이상 반드시 넣는다.',
     '- visual="bullets" 인 씬은 bullets 배열에 짧은 항목을 반드시 2~5개 채운다(빈 배열 금지). 각 항목은 한 화면에 큰 글씨로 뜨는 문구이므로 8~16자 정도로 짧게.',
     '- visual="quote" 인 씬은 narration 자체가 화면에 크게 뜨는 한 문장 임팩트 인용구가 되므로, narration 을 다른 씬보다 짧고 단호한 한 문장으로 쓴다(주석문/설명 붙이지 말고 그 자체로 완결된 명제).',
@@ -223,7 +233,7 @@ export async function generateScript(params: {
     console.log(`[대본] 분량 미달 → 더 길게 재생성 시도`);
     try {
       const retry = await runOnceResilient(
-        `\n\n[중요·재작성 지시] 직전 시도가 총 ${chars}자로 목표(${targetChars}자)의 절반 수준밖에 안 돼 영상이 너무 짧다. 이번엔 씬 수를 ${isBrief ? 30 : 32}개 이상으로 늘리고 각 씬 나레이션을 2~4문장(120~200자)으로 충분히 써서 총 ${targetChars}자 이상을 반드시 채워라. (quote 씬만 짧게.)`,
+        `\n\n[중요·재작성 지시] 직전 시도가 총 ${chars}자로 목표(${targetChars}자)의 절반 수준밖에 안 돼 영상이 너무 짧다. 이번엔 씬 수를 ${sceneMax}개 이상으로 늘리고 각 씬 나레이션을 2~4문장(120~200자)으로 충분히 써서 총 ${targetChars}자 이상을 반드시 채워라. (quote 씬만 짧게.)`,
       );
       const retryChars = totalChars(retry);
       console.log(`[대본] 재생성 결과 총 ${retryChars}자 (씬 ${retry.scenes.length}개)`);

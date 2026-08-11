@@ -48,7 +48,7 @@ export default async function handler(req, res) {
     content_level: ['basic', 'intermediate', 'expert'].includes(pick('level', 'content_level')) ? pick('level', 'content_level') : 'expert',
     // 기본은 업로드 안 함 — 유료 업로드는 명시적으로 켤 때만.
     do_upload: truthy(pick('upload', 'do_upload')) ? 'true' : 'false',
-    target_minutes: String(Math.max(2, Math.min(20, Number(pick('minutes', 'target_minutes')) || 10))),
+    target_minutes: String(Math.max(1, Math.min(20, Number(pick('minutes', 'target_minutes')) || 10))),
     // 업로드 대상 채널 (default | ch2). 알 수 없는 값은 default 로 안전 처리.
     channel: ['default', 'ch2'].includes(body.channel) ? body.channel : 'default',
     // 공개 상태. 리뷰 흐름은 'unlisted'(미등록)로 올려 확인 후 발행. 빈 값이면 워크플로 기본값.
