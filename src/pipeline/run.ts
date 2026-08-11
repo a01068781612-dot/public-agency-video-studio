@@ -315,6 +315,15 @@ async function stepRender(): Promise<void> {
     await writeJson(MANIFEST_PATH, manifest); // imagePath 반영 저장(재실행 대비)
     const made = Object.keys(imgMap).length;
     console.log(`  · 일러스트 ${made}/${needsAiImage.length}장 완료 → Remotion 합성`);
+    // 그림이 필요한 씬이 있는데 한 장도 못 만들었다 = 영상이 통째로 글자 화면만 남는다는 뜻.
+    // 예전엔 이게 조용히 지나가서, 완성본을 보고 나서야 "이미지가 하나도 없다"는 걸 알았다.
+    if (needsAiImage.length > 0 && made === 0) {
+      const key = config.imageProvider === 'gemini' ? 'GEMINI_API_KEY' : 'OPENAI_API_KEY';
+      console.warn(
+        `  ⚠ 이미지가 한 장도 생성되지 않았습니다(${key} 미설정 또는 생성 실패). ` +
+          `그림 씬 ${needsAiImage.length}개가 전부 글자 화면으로 렌더됩니다 — 홍보용으로 쓰기 어렵습니다.`,
+      );
+    }
     await renderVideo(manifest, 'AiIllustrated');
   } else {
     await renderVideo(manifest); // 손그림(Remotion)

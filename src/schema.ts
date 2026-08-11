@@ -35,6 +35,9 @@ export const VisualKind = z.enum([
   'comparison', // 좌/우 비교
   'quote', // 한 문장 강조
   'code', // 실제 파일/코드/설정 예시 한 화면
+  // 실제 장면을 그린 AI 일러스트 한 장. 나머지 종류는 전부 코드(글자·도형)로 그려지므로,
+  // 화면에 "그림"이 들어가는 유일한 씬이다 — 이게 없으면 영상 전체가 글자만 남는다.
+  'illustration',
   'outro', // 마무리/구독 유도
 ]);
 
@@ -76,8 +79,8 @@ export const SceneSchema = z.object({
   heading: z.string(), // 화면 상단 짧은 제목
   narration: z.string(), // 성우가 읽을 나레이션 (해당 언어)
   bullets: z.array(z.string()).max(5).default([]),
-  // AI 일러스트용 영어 시각 묘사 — 폴백 전용(icon 이 없을 때만 사용). title/outro 는 기본적으로
-  // 아래 icon 필드로 렌더링되므로 보통 채울 필요 없다.
+  // AI 일러스트용 영어 시각 묘사. visual="illustration" 씬에서는 필수(이게 그림의 소재가 된다).
+  // title/outro 는 보통 icon 으로 렌더링되므로 그쪽에서는 폴백 용도로만 쓰인다.
   illustration: z.string().default(''),
   // title/outro 씬에서 실제로 렌더링되는 평면 2D 아이콘. 이 씬이 설명하는 구체적 대상과
   // 맞는 아이콘을 고른다(예: 보안 얘기면 lock, 데이터 얘기면 database).

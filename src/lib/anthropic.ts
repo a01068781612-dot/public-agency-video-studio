@@ -123,7 +123,11 @@ export async function generateScript(params: {
     'heading·bullets 는 보조 데이터일 뿐 화면 자막으로는 나레이션이 쓰이므로, 짧고 핵심만 담는다.',
     // illustration 은 "무엇을 그릴지"만 쓰게 한다. "어떻게 그릴지"(화풍)는 이미지 생성 직전에
     // artStyle.ts 가 붙이므로, 여기서 화풍까지 지시하면 두 지시가 충돌한다.
-    'illustration 은 이 씬을 삽화 한 장으로 그리기 위한 영어 묘사다. 나레이션이 말하는 사물·행동·화면이 무엇인지만 구체적으로 적는다(은유 금지). 화풍·색·터치는 적지 마라 — 그건 별도로 지정된다. 화면에 글자는 넣지 않는다.',
+    'illustration 은 이 씬을 그림 한 장으로 그리기 위한 영어 묘사다. 나레이션이 말하는 사물·행동·장면이 무엇인지만 구체적으로 적는다(은유 금지). 화풍·색·터치는 적지 마라 — 그건 별도로 지정된다. 화면에 글자는 넣지 않는다(AI 가 만든 글자는 항상 깨져 나온다).',
+    'illustration 묘사는 "무엇이 화면에 보이는가"를 카메라로 찍듯 적는다: 등장하는 사람(직업·복장·행동), 장소, 눈에 보이는 사물, 시점과 거리. 예: "firefighters in full turnout gear directing a hose at a burning warehouse loading dock at night, viewed from across the yard". 추상 개념("innovation", "data flowing")이나 도표를 그리라고 하지 마라 — 그런 내용이면 애초에 diagram 씬으로 갔어야 한다.',
+    ...(agency
+      ? [`illustration 은 가능한 한 "${agency.label}"의 실제 현장이 떠오르는 장면으로 잡는다 — 그 기관 소관 분야(${agency.domain})에서 실제로 일하는 사람과 쓰는 장비·시설·서류가 화면에 보이게 한다. 다만 기관 로고·표장·제복 마크·문서의 글자 같은 식별 표식은 절대 그리지 마라(AI 가 만든 로고는 가짜 표장이 되고 글자는 깨진다). 복장과 장비, 공간의 성격만으로 어떤 분야인지 드러나게 한다.`]
+      : []),
   ].join(' ');
 
   const user = [
@@ -137,10 +141,11 @@ export async function generateScript(params: {
     `- 씬(scenes)은 ${sceneMin}~${sceneMax}개로 나눈다(단계형 내용은 단계당 1씬). 씬이 적으면 위 총 글자수를 못 채운다.${isBrief ? ' 브리핑 내용이 많으면 이 범위를 넘겨도 좋다(분량보다 완전 반영 우선).' : ''}`,
     '- 한 씬의 narration 은 2~4문장, 대략 120~200자로 충분히 쓴다 — 한 문장만 달랑 쓰면 영상이 짧아지는 주된 원인이 된다. (예외: quote 씬만은 한 문장 임팩트로 짧게 쓴다.)',
     '- 첫 씬은 visual="title" 로 후킹 도입(왜 이 주제가 중요한지)을 담는다. visual="title" 은 이 영상 전체에서 딱 이 첫 씬 한 번만 쓴다 — 중간에 장/화제를 전환하고 싶어도 title 을 또 쓰지 마라(그러면 그 씬마다 AI 그림 한 장 + 줌 효과가 반복돼 영상 전체가 "맨날 같은 그림"처럼 보이는 가장 큰 원인이 된다). 장 전환이 필요하면 quote(소제목이나 전환 문장을 강조 문구로) 또는 bullets 를 대신 써라.',
-    '- 중간 씬은 bullets / diagram / comparison / quote / code 다섯 가지만으로 구성한다(title 은 위에서 말했듯 중간에 쓰지 않는다). 한 영상에 한두 타입만 반복되지 않게 다섯 가지를 고루 번갈아 쓰고, 다루는 내용에 실제 파일/코드가 있으면 code 를, 여러 항목이 하나에 모이거나 퍼지는 관계면 diagram 을 적극 활용해라.',
+    '- 중간 씬은 illustration / bullets / diagram / comparison / quote / code 여섯 가지로 구성한다(title 은 위에서 말했듯 중간에 쓰지 않는다).',
+    '- ★가장 중요★ visual="illustration" 은 실제 장면을 그린 그림 한 장이 화면을 채우는 씬이고, 나머지 다섯 종류는 전부 글자·도형만 나오는 화면이다. 그래서 illustration 이 적으면 영상 전체가 "글자만 나오는 영상"이 되어 홍보물로 쓸 수 없다. 중간 씬의 절반 이상(최소 50%)을 illustration 으로 채워라. 사건 현장, 사람들이 일하는 모습, 장비·시설·서류 같은 실물이 등장하는 대목은 무조건 illustration 으로 간다.',
     isShortForm
-      ? '- ★단조로움 방지★ 씬 수가 적은 짧은 영상이니 diagram/comparison/quote/code 를 억지로 다 채우려 하지 마라 — 내용에 실제로 맞는 타입 1~2가지만 자연스럽게 섞어라. 다만 중간 씬 전부를 bullets 하나로만 채우지는 말고, 최소 1개는 다른 타입(diagram/comparison/quote/code 중 내용에 맞는 것)을 넣는다.'
-      : '- ★단조로움 방지(반드시 지켜라)★ bullets 씬은 전체 중간 씬의 1/3(약 30%)을 넘기지 마라 — 직전 영상은 절반 이상이 bullets라 밋밋했다. 대신 다음 최소 개수를 반드시 채운다: diagram 최소 3개, comparison 최소 2개, quote 2~4개, code 최소 1개(소재가 있으면 2개 이상). 같은 타입이 세 씬 연속으로 오지 않게 번갈아 배치한다. 설명을 "여러 항목 나열"로 처리하고 싶을 때 습관적으로 bullets 를 쓰지 말고, 관계·흐름이면 diagram, 두 대상이면 comparison 으로 바꿔라.',
+      ? '- ★단조로움 방지★ 씬 수가 적은 짧은 영상이니 diagram/comparison/quote/code 를 억지로 다 채우려 하지 마라 — 내용에 맞는 타입 1~2가지만 자연스럽게 섞고, 나머지는 illustration 으로 간다. 글자 화면(bullets/quote 등)이 연속 두 씬을 넘지 않게 사이사이에 illustration 을 끼워 넣어라.'
+      : '- ★단조로움 방지(반드시 지켜라)★ 글자만 나오는 씬(bullets/quote/code)이 세 씬 연속으로 오지 않게 하고, 그 사이사이에 illustration 을 넣어 화면이 계속 바뀌게 한다. bullets 씬은 전체 중간 씬의 1/5을 넘기지 마라. 나열식으로 처리하고 싶을 때 습관적으로 bullets 를 쓰지 말고, 관계·흐름이면 diagram, 두 대상이면 comparison, 눈에 보이는 장면이면 illustration 으로 바꿔라. diagram 2개 내외, comparison 1~2개, quote 1~3개 정도면 충분하다.',
     '- visual="code" 는 이 대본에서 가장 중요한 "구체성" 장치다 — 다룰 대상에 실제로 존재하는 파일/설정/코드가 있다면(예: 스킬 정의 파일, 훅 스크립트, 플러그인 매니페스트, 설정 파일, API 요청 예시, 커맨드 한 줄) 말로 설명만 하지 말고 반드시 code 씬으로 화면에 그대로 보여준다. code 필드에 filename(실제 있을 법한 경로), language, code(실제 동작할 법한 8~14줄짜리 최소 예시, 지어내되 현실적이고 정확한 문법으로)를 채운다. 이런 소재가 있는 대본이면 최소 1개 이상 반드시 넣는다.',
     '- visual="bullets" 인 씬은 bullets 배열에 짧은 항목을 반드시 2~5개 채운다(빈 배열 금지). 각 항목은 한 화면에 큰 글씨로 뜨는 문구이므로 8~16자 정도로 짧게.',
     '- visual="quote" 인 씬은 narration 자체가 화면에 크게 뜨는 한 문장 임팩트 인용구가 되므로, narration 을 다른 씬보다 짧고 단호한 한 문장으로 쓴다(주석문/설명 붙이지 말고 그 자체로 완결된 명제).',

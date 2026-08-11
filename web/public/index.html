@@ -299,7 +299,7 @@
 
         <div class="switch">
           <input id="upload" type="checkbox" checked />
-          <label for="upload" style="margin: 0">완성 후 미리보기 업로드(미등록) — 확인 후 발행 · 끄면 렌더만</label>
+          <label for="upload" style="margin: 0">완성되면 <b>유튜브에 바로 전체공개</b>로 발행 — 확인 절차 없음 · 끄면 렌더만</label>
         </div>
 
         <label for="pw">앱 비밀번호 (설정한 경우)</label>
@@ -454,8 +454,9 @@
               style: $('style').value,
               art: $('art').value, tone: $('tone').value,
               agency: $('agency').value,
-              // 업로드를 켜면 먼저 '미등록(unlisted)'으로 올려 확인 후 발행하는 리뷰 흐름.
-              privacy: $('upload').checked ? 'unlisted' : '',
+              // 업로드를 켜면 렌더가 끝나는 대로 곧바로 전체공개(public)로 발행한다.
+              // (사람이 확인하고 누르는 단계 없이 자동으로 올라간다 — 체크박스 라벨에 명시.)
+              privacy: $('upload').checked ? 'public' : '',
             }),
           });
           const data = await res.json();
