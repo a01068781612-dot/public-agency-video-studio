@@ -29,8 +29,14 @@ export const audioStaticPath = (sceneId: string) => `audio/${sceneId}.mp3`;
 
 /** 영상 규격 (10분 영상 렌더 부담을 줄이기 위해 24fps — 부드러움 충분) */
 export const FPS = 24;
-export const WIDTH = 1920;
-export const HEIGHT = 1080;
+/**
+ * 화면 비율 — 16:9(가로, 기본) | 9:16(세로, 쇼츠).
+ * Remotion 은 매니페스트의 width/height 를 그대로 따르므로(Root.tsx 의 calculateMetadata),
+ * 여기 값만 바꾸면 렌더 해상도가 바뀐다.
+ */
+export const ASPECT = (process.env.ASPECT_RATIO || '16:9').trim() === '9:16' ? '9:16' : '16:9';
+export const WIDTH = ASPECT === '9:16' ? 1080 : 1920;
+export const HEIGHT = ASPECT === '9:16' ? 1920 : 1080;
 
 function required(name: string): string {
   const v = process.env[name];

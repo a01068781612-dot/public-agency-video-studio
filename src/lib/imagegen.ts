@@ -28,7 +28,7 @@ export interface GenerateImageOptions {
   /** 강제 지정. 비우면 provider 별 기본 모델. */
   model?: string;
   /** 16:9 가 기본. OpenAI 는 픽셀 크기로, Gemini 는 비율로 변환된다. */
-  aspect?: '16:9' | '1:1';
+  aspect?: '16:9' | '9:16' | '1:1';
 }
 
 /** provider 별 기본 모델. */
@@ -49,11 +49,11 @@ function defaultModel(provider: ImageProvider): string {
 type GeminiImageFormat = {
   type: 'image';
   mime_type: 'image/jpeg';
-  aspect_ratio: '16:9' | '1:1';
+  aspect_ratio: '16:9' | '9:16' | '1:1';
   image_size: '512' | '1K' | '2K' | '4K';
 };
 
-const IMAGE_RESPONSE_FORMAT = (aspect: '16:9' | '1:1'): GeminiImageFormat => ({
+const IMAGE_RESPONSE_FORMAT = (aspect: '16:9' | '9:16' | '1:1'): GeminiImageFormat => ({
   type: 'image',
   mime_type: 'image/jpeg',
   aspect_ratio: aspect,
@@ -77,7 +77,7 @@ export async function generateImage(opts: GenerateImageOptions): Promise<Buffer>
 async function generateWithGemini(
   prompt: string,
   model: string,
-  aspect: '16:9' | '1:1',
+  aspect: '16:9' | '9:16' | '1:1',
   step: string,
 ): Promise<Buffer> {
   const apiKey = config.geminiApiKey;
@@ -112,19 +112,19 @@ async function generateWithGemini(
 async function generateWithOpenAI(
   prompt: string,
   model: string,
-  aspect: '16:9' | '1:1',
+  aspect: '16:9' | '9:16' | '1:1',
   step: string,
 ): Promise<Buffer> {
   const apiKey = config.openaiApiKey;
   if (!apiKey) throw new Error('OPENAI_API_KEY 가 없습니다');
   const client = new OpenAI({ apiKey });
 
-  // mini 계열은 16:9 를 지원하지 않아 3:2 로 뽑고 호출부에서 크롭한다(글자가 없어 무해).
-  const size = aspect === '1:1' ? '1024x1024' : '1536x1024';
+  // mini 계열은 16:9 를 지원하지 않아 3:2(가로)/2:3(세로)로 뽑고 호출부에서 크롭한다(글자가 없어 무해).
+  const size = aspect === '1:1' ? '1024x1024' : aspect === '9:16' ? '1024x1536' : '1536x1024';
   const res = await client.images.generate({
     model,
     prompt,
-    size: size as '1024x1024' | '1536x1024',
+    size: size as '1024x1024' | '1536x1024' | '1024x1536',
     quality: 'medium',
   });
 

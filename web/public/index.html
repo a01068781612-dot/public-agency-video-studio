@@ -263,6 +263,13 @@
             </select>
           </div>
           <div>
+            <label for="aspect">화면 비율</label>
+            <select id="aspect">
+              <option value="16:9" selected>가로 16:9 (일반)</option>
+              <option value="9:16">세로 9:16 (쇼츠)</option>
+            </select>
+          </div>
+          <div>
             <label for="style">영상 스타일</label>
             <select id="style">
               <option value="illustrated" selected>2D 벡터 일러스트</option>
@@ -466,7 +473,7 @@
               upload: $('upload').checked, password: $('pw').value,
               style: $('style').value,
               art: $('art').value, tone: $('tone').value,
-              agency: $('agency').value,
+              agency: $('agency').value, aspect: $('aspect').value,
               // 업로드를 켜면 렌더가 끝나는 대로 곧바로 전체공개(public)로 발행한다.
               // (사람이 확인하고 누르는 단계 없이 자동으로 올라간다 — 체크박스 라벨에 명시.)
               privacy: $('upload').checked ? 'public' : '',

@@ -91,7 +91,8 @@ export default async function handler(req, res) {
     content_level: ['basic', 'intermediate', 'expert'].includes(pick('level', 'content_level')) ? pick('level', 'content_level') : 'expert',
     // 기본은 업로드 안 함 — 유료 업로드는 명시적으로 켤 때만.
     do_upload: truthy(pick('upload', 'do_upload')) ? 'true' : 'false',
-    target_minutes: String(Math.max(1, Math.min(20, Number(pick('minutes', 'target_minutes')) || 10))),
+    // 길이는 1분 고정이 기본 — 값이 안 오면 예전 기본값(10분)으로 떨어져 비용이 10배가 된다.
+    target_minutes: String(Math.max(1, Math.min(20, Number(pick('minutes', 'target_minutes')) || 1))),
     // 업로드 대상 채널 (default | ch2). 알 수 없는 값은 default 로 안전 처리.
     channel: ['default', 'ch2'].includes(body.channel) ? body.channel : 'default',
     // 공개 상태. 리뷰 흐름은 'unlisted'(미등록)로 올려 확인 후 발행. 빈 값이면 워크플로 기본값.
@@ -107,13 +108,15 @@ export default async function handler(req, res) {
     narration_tone: TONES.includes(pick('tone', 'narration_tone')) ? pick('tone', 'narration_tone') : '',
     // 홍보 타겟 기관(src/lib/agency.ts). 목록에 없는 값은 빈 값으로 떨어뜨려 특정 기관 없음으로 처리.
     agency: AGENCIES.includes(body.agency) ? body.agency : '',
+    // 화면 비율: 16:9(가로) | 9:16(세로 쇼츠). 알 수 없는 값은 빈 값 → 워크플로 기본값(16:9).
+    aspect: ['16:9', '9:16'].includes(body.aspect) ? body.aspect : '',
   };
 
   // 알 수 없는 키가 섞여 오면 조용히 버리지 말고 응답에 알려준다(오타로 인한 설정 유실 방지).
   const KNOWN = new Set([
     'topic', 'mode', 'content_mode', 'level', 'content_level', 'upload', 'do_upload',
     'minutes', 'target_minutes', 'channel', 'privacy', 'style', 'speed', 'narration_speed', 'password',
-    'art', 'art_style', 'tone', 'narration_tone', 'agency',
+    'art', 'art_style', 'tone', 'narration_tone', 'agency', 'aspect',
   ]);
   const ignored = Object.keys(body).filter((k) => !KNOWN.has(k));
 
@@ -144,6 +147,7 @@ export default async function handler(req, res) {
       art_style: client_payload.art_style || '(워크플로 기본값)',
       narration_tone: client_payload.narration_tone || '(워크플로 기본값)',
       agency: client_payload.agency || '(지정 안 함)',
+      aspect: client_payload.aspect || '(워크플로 기본값)',
     },
     ...(ignored.length ? { ignoredKeys: ignored } : {}),
   });

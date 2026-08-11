@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import sharp from 'sharp';
-import { config, PUBLIC_DIR } from '../config.js';
+import { config, PUBLIC_DIR, ASPECT, WIDTH, HEIGHT } from '../config.js';
 import { buildIllustrationPrompt, resolveArtStyle, type ArtStyle } from './artStyle.js';
 import { generateImage } from './imagegen.js';
 
@@ -43,11 +43,14 @@ export async function generateIllustrations(
           prompt: buildIllustrationPrompt(style, subject, dark),
           step: 'illustration',
           provider,
+          // 세로 영상이면 그림도 세로로 뽑아야 한다 — 가로 그림을 세로로 크롭하면
+          // 화면 대부분이 잘려나가 무엇을 그렸는지 알 수 없게 된다.
+          aspect: ASPECT,
         });
         const rel = `img/${scene.id}.png`;
-        // OpenAI mini 는 3:2 로 나오므로 16:9 로 크롭한다. Gemini 는 이미 16:9 라 그대로 통과.
+        // 모델마다 나오는 비율이 조금씩 달라(OpenAI mini 는 3:2) 최종 해상도로 맞춰 크롭한다.
         await sharp(buf)
-          .resize(1920, 1080, { fit: 'cover', position: 'centre' })
+          .resize(WIDTH, HEIGHT, { fit: 'cover', position: 'centre' })
           .png()
           .toFile(path.join(PUBLIC_DIR, rel));
         out[scene.id] = rel;
