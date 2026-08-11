@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import { google } from 'googleapis';
 import { config } from '../config.js';
 import type { Script } from '../schema.js';
+import { resolveAgency } from './agency.js';
 
 /**
  * OAuth2 클라이언트 생성 (refresh token 기반, 서버/CI 환경에서 사용).
@@ -33,7 +34,8 @@ export async function uploadVideo(params: {
   const youtube = google.youtube({ version: 'v3', auth });
 
   // 대본 설명 + 고정 푸터(모든 영상 공통 안내). 줄바꿈(\n)은 유튜브가 그대로 표시.
-  const footer = config.youtubeDescriptionFooter.replace(/\\n/g, '\n').trim();
+  // 단, 특정 기관용 영상에는 이 회사 홍보 문구가 안 어울려서 뺀다.
+  const footer = resolveAgency(config.targetAgency) ? '' : config.youtubeDescriptionFooter.replace(/\\n/g, '\n').trim();
   const description = (footer ? `${script.description.trim()}\n\n${footer}` : script.description.trim()).slice(0, 5000);
 
   // containsSyntheticMedia 는 googleapis 패키지의 타입 정의가 아직 못 따라와서(2024-10-30 API 추가분)

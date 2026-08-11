@@ -321,12 +321,15 @@ async function stepRender(): Promise<void> {
 /** AI 썸네일 생성 — 실패/키없음 시 기존 썸네일을 그대로 둔다. (엔진 무관 공통) */
 async function makeThumbnail(): Promise<void> {
   const meta = await loadMeta();
+  // 기관 지정 영상은 "무엇을 다루는지"보다 "어느 기관 발(發)인지"가 신뢰도에 더 중요하므로
+  // 콘텐츠 배지(예: 제품명) 대신 기관명을 썸네일 배지로 우선 띄운다.
+  const agency = resolveAgency(config.targetAgency);
   try {
     const ok = await generateThumbnail({
       title: meta.title,
       topic: meta.topic,
       headline: meta.thumbnailHeadline,
-      badge: meta.thumbnailBadge,
+      badge: agency?.label || meta.thumbnailBadge,
       outPath: THUMBNAIL_PATH,
       dramatic: resolveTopicMode() === 'trend',
     });
