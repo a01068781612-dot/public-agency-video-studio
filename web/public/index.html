@@ -54,6 +54,21 @@
       .est-label { font-size: 13px; color: var(--sub); }
       .est-amt { font-size: 20px; font-weight: 800; color: var(--ink); }
       .est-sub { margin-top: 6px; font-size: 12px; color: var(--sub); line-height: 1.5; }
+      /* 만들기 → 비밀번호 확인 단계 */
+      .confirm {
+        display: none; margin-top: 14px; padding: 16px;
+        border-radius: 14px; background: #10141d; border: 1px solid var(--accent);
+      }
+      .confirm.show { display: block; }
+      .confirm-amt { font-size: 15px; font-weight: 700; color: var(--ink); }
+      .confirm-btns { display: flex; gap: 10px; margin-top: 14px; }
+      .confirm-btns button {
+        flex: 1; padding: 13px; border-radius: 12px; font-size: 15px; font-weight: 700;
+        cursor: pointer; font-family: inherit; border: 1px solid var(--line);
+      }
+      .btn-ghost { background: #141824; color: var(--sub); }
+      .btn-primary { background: linear-gradient(135deg, var(--accent), #f76707); color: #fff; border: none; }
+      .btn-primary:disabled { opacity: .5; cursor: not-allowed; }
       .switch { display: flex; align-items: center; gap: 10px; margin-top: 18px; color: var(--sub); font-size: 14px; }
       .switch input { width: 20px; height: 20px; accent-color: var(--accent); }
       button.go {
@@ -255,11 +270,11 @@
             </select>
           </div>
           <div>
-            <label for="level">난이도</label>
+            <label for="level">타겟층</label>
             <select id="level">
-              <option value="basic">쉽게(초보용)</option>
-              <option value="intermediate">중급</option>
-              <option value="expert" selected>전문가용(깊이있게)</option>
+              <option value="basic">일반 국민 — 쉬운 말로 풀어서</option>
+              <option value="intermediate" selected>기관 실무자 — 업무에 바로 쓰게</option>
+              <option value="expert">전문가·언론 — 깊이 있게</option>
             </select>
           </div>
           <div>
@@ -269,34 +284,9 @@
               <option value="9:16">세로 9:16 (쇼츠)</option>
             </select>
           </div>
-          <div>
-            <label for="style">영상 스타일</label>
-            <select id="style">
-              <option value="illustrated" selected>2D 벡터 일러스트</option>
-              <option value="signal">시그널(데이터 중심)</option>
-            </select>
-          </div>
-          <div>
-            <label for="art">화풍</label>
-            <select id="art">
-              <option value="isometric" selected>흑백 등각 라인아트 (기존)</option>
-              <option value="cinematic">시네마틱 사진</option>
-            </select>
-          </div>
-          <div>
-            <label for="tone">말투</label>
-            <select id="tone">
-              <option value="documentary" selected>다큐멘터리톤</option>
-              <option value="storytelling">스토리텔링</option>
-            </select>
-          </div>
         </div>
 
         <p class="hint" style="text-align: left">영상 길이는 <b>1분</b>으로 고정돼 있어요.</p>
-
-        <p class="hint" id="artHint">
-          화풍은 <b>2D 벡터 일러스트</b> 스타일에서만 그림에 적용됩니다. 시그널·3D 계열은 화면을 코드로 그리기 때문에 화풍 설정이 영상에 반영되지 않습니다.
-        </p>
 
         <div class="switch">
           <input id="veo" type="checkbox" />
@@ -308,8 +298,8 @@
           <label for="upload" style="margin: 0">완성되면 <b>유튜브에 바로 전체공개</b>로 발행 — 확인 절차 없음 · 끄면 렌더만</label>
         </div>
 
-        <!-- 견적 → 비밀번호 → 제작 순서. 돈이 나가는 일이라 금액을 먼저 보고,
-             비밀번호를 넣는 행위가 곧 "이 금액으로 진행하겠다"는 확인이 되게 한다. -->
+        <!-- 주제·보기 선택 → 견적 확인 → [만들기] → 비밀번호 → 실행.
+             비밀번호를 마지막 단계에 두어, 금액을 본 뒤 한 번 더 확인하고 넘어가게 한다. -->
         <div class="est" id="est">
           <div class="est-row">
             <span class="est-label">이번 실행 예상 비용</span>
@@ -318,10 +308,19 @@
           <div class="est-sub" id="estSub"></div>
         </div>
 
-        <label for="pw">앱 비밀번호 — 입력해야 제작이 시작됩니다</label>
-        <input id="pw" type="password" placeholder="비밀번호를 입력하세요" autocomplete="off" />
+        <button id="go" class="go">🚀 만들기</button>
 
-        <button id="go" class="go" disabled>🔒 비밀번호를 입력하세요</button>
+        <!-- 만들기를 누르면 열리는 최종 확인 단계 -->
+        <div id="confirm" class="confirm">
+          <div class="confirm-amt" id="confirmAmt"></div>
+          <label for="pw" style="margin-top: 4px">앱 비밀번호</label>
+          <input id="pw" type="password" placeholder="비밀번호를 입력하세요" autocomplete="off" />
+          <div class="confirm-btns">
+            <button id="cancel" class="btn-ghost">취소</button>
+            <button id="confirmGo" class="btn-primary" disabled>확인하고 제작 시작</button>
+          </div>
+        </div>
+
         <div class="hint">제작에는 몇 분 걸려요. 완성되면 아래에서 미리보기 영상·썸네일을 확인하고 발행/수정할 수 있어요.</div>
         <div id="toast" class="toast"></div>
 
@@ -390,17 +389,6 @@
         t.className = 'toast ' + (kind === 'err' ? 'err' : 'info');
       };
 
-      // 화풍은 AI 그림을 쓰는 illustrated 엔진에서만 영상에 반영된다.
-      // 시그널·3D 계열은 화면을 코드로 그리므로, 골라도 안 먹는다는 걸 미리 알려준다.
-      // (안내문을 항상 띄우면 정작 적용되는 경우에도 "안 되나?" 하고 헷갈리므로 조건부로 보여준다.)
-      function syncArtHint() {
-        const usesArt = $('style').value === 'illustrated';
-        $('artHint').style.display = usesArt ? 'none' : 'block';
-        $('art').disabled = !usesArt;
-      }
-      $('style').addEventListener('change', syncArtHint);
-      syncArtHint();
-
       // ── 실행 전 예상 비용 ──
       // 누르기 전에 얼마 나올지 보여준다. 길이·모드·주제 유무에 따라 달라지므로 바뀔 때마다 갱신.
       // (웹서치 리서치는 주제를 지정했거나 트렌드 모드일 때만 돌고, 그게 비용의 큰 몫이다.)
@@ -427,11 +415,14 @@
             ? ` ⚠️ 1회 상한 ${d.limits.perRunKrw.toLocaleString()}원을 넘어 실행이 차단됩니다.`
             : '';
           $('estSub').textContent = `${minutes}분 · ${parts.join(' · ')} — ${d.note}${warn}`;
+          lastEstimate = d;
         } catch (e) {
           $('estAmt').textContent = '—';
           $('estSub').textContent = '예상 비용을 계산하지 못했어요: ' + e.message;
+          lastEstimate = null;
         }
       }
+      let lastEstimate = null;
       const fmtUsd = (n) => (n ? '$' + n.toFixed(2) : '$0');
       const scheduleEstimate = () => {
         clearTimeout(estTimer);
@@ -442,18 +433,32 @@
       $('veo').addEventListener('change', refreshEstimate);
       refreshEstimate();
 
-      // 비밀번호를 넣기 전에는 제작 버튼을 잠가 둔다 — 견적을 본 뒤 비밀번호를 입력하는 것이
-      // "이 금액으로 진행" 확인 절차가 되도록. (쿨다운 중에는 그쪽 상태를 건드리지 않는다.)
+      // ── 만들기 → 비밀번호 확인 → 실행 ──
+      // 견적을 본 뒤 [만들기]를 누르면 확인 단계가 열리고, 거기서 비밀번호를 넣어야 실제로 돈이 나간다.
       let cooling = false;
-      function syncGoButton() {
+      function openConfirm() {
         if (cooling) return;
-        const ready = $('pw').value.trim() !== '';
-        const btn = $('go');
-        btn.disabled = !ready;
-        btn.textContent = ready ? '🚀 미리보기 제작' : '🔒 비밀번호를 입력하세요';
+        const amt = lastEstimate ? `약 ${lastEstimate.krw.toLocaleString()}원이 청구됩니다.` : '예상 비용을 계산하지 못했습니다.';
+        $('confirmAmt').textContent = amt;
+        $('confirm').classList.add('show');
+        $('pw').focus();
+        syncConfirmBtn();
       }
-      $('pw').addEventListener('input', syncGoButton);
-      syncGoButton();
+      function closeConfirm() {
+        $('confirm').classList.remove('show');
+        $('pw').value = '';
+        syncConfirmBtn();
+      }
+      function syncConfirmBtn() {
+        $('confirmGo').disabled = $('pw').value.trim() === '';
+      }
+      $('go').addEventListener('click', openConfirm);
+      $('cancel').addEventListener('click', closeConfirm);
+      $('pw').addEventListener('input', syncConfirmBtn);
+      // 비밀번호 칸에서 엔터로 바로 진행
+      $('pw').addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !$('confirmGo').disabled) publish();
+      });
 
       let triggeredAt = 0;
       let pollTimer = null;
@@ -473,10 +478,12 @@
       async function publish() {
         const topic = $('topic').value.trim();
         const btn = $('go');
-        if (btn.disabled) return;
-        cooling = true; // 아래 상태 변경을 syncGoButton 이 되돌리지 않게
+        const cbtn = $('confirmGo');
+        if (cbtn.disabled) return;
+        cooling = true;
+        cbtn.disabled = true;
+        cbtn.textContent = '요청 중...';
         btn.disabled = true;
-        btn.textContent = '요청 중...';
         try {
           const res = await fetch('/api/publish', {
             method: 'POST',
@@ -485,8 +492,6 @@
               topic, mode: $('mode').value, minutes: TARGET_MINUTES,
               level: $('level').value,
               upload: $('upload').checked, password: $('pw').value,
-              style: $('style').value,
-              art: $('art').value, tone: $('tone').value,
               agency: $('agency').value, aspect: $('aspect').value, veo: $('veo').checked,
               // 업로드를 켜면 렌더가 끝나는 대로 곧바로 전체공개(public)로 발행한다.
               // (사람이 확인하고 누르는 단계 없이 자동으로 올라간다 — 체크박스 라벨에 명시.)
@@ -499,16 +504,24 @@
           shownPct = 0;
           setLive('queued', { stage: '실행을 준비하고 있어요', sub: '잠시 후 GitHub Actions가 시작됩니다' });
           toast('✅ 발행 요청을 보냈어요! 아래에서 제작 과정이 실시간으로 보여요.', 'info');
+          closeConfirm(); // 비밀번호를 화면에 남겨두지 않는다
           btn.textContent = '요청됨 · 실행 대기…';
-          // 쿨다운이 끝나도 비밀번호가 비어 있으면 다시 잠긴 상태로 돌아간다.
-          setTimeout(() => { cooling = false; syncGoButton(); }, COOLDOWN_MS);
+          cbtn.textContent = '확인하고 제작 시작';
+          setTimeout(() => {
+            cooling = false;
+            btn.disabled = false;
+            btn.textContent = '🚀 만들기';
+          }, COOLDOWN_MS);
           startPolling(1200);
         } catch (e) {
           toast('⚠️ ' + e.message, 'err');
           cooling = false;
-          syncGoButton();
+          btn.disabled = false;
+          cbtn.textContent = '확인하고 제작 시작';
+          syncConfirmBtn();
         }
       }
+      $('confirmGo').addEventListener('click', publish);
 
       function startPolling(delay = 0) {
         if (pollTimer) clearTimeout(pollTimer);
