@@ -16,7 +16,17 @@ export const PRICE = {
   geminiImage: Number(process.env.PRICE_GEMINI_IMAGE || 0.067),
   // TTS — 1000자당 달러
   tts1k: Number(process.env.PRICE_TTS_1K || 0.22),
+  // Veo 3.1 Lite 실사 영상 — 초당 달러(720p 기준). 1080p 는 약 $0.08.
+  veoSec: Number(process.env.PRICE_VEO_SEC || 0.05),
   usdKrw: Number(process.env.USD_KRW || 1380),
+};
+
+// Veo 클립 설정 — 파이프라인의 VEO_* 환경변수와 같은 값을 봐야 견적이 맞는다.
+// 길이는 API 가 4·6·8초만 허용한다(5초 불가).
+export const VEO = {
+  enabled: String(process.env.USE_VEO || 'false').toLowerCase() === 'true',
+  clipCount: Number(process.env.VEO_CLIP_COUNT || 4),
+  clipSeconds: Number(process.env.VEO_CLIP_SECONDS || 4),
 };
 
 // 비용 상한 — 넘으면 실행을 아예 시작하지 않는다. 원화로 잡고 내부에서 달러로 환산한다
@@ -37,7 +47,8 @@ export function cost(t) {
     (((t.openaiIn || 0) * PRICE.openaiIn + (t.openaiOut || 0) * PRICE.openaiOut) / 1e6) +
     ((t.images || 0) * PRICE.image) +
     ((t.geminiImages || 0) * PRICE.geminiImage) +
-    (((t.ttsChars || 0) / 1000) * PRICE.tts1k)
+    (((t.ttsChars || 0) / 1000) * PRICE.tts1k) +
+    ((t.veoSeconds || 0) * PRICE.veoSec)
   );
 }
 

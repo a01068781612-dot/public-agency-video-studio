@@ -6,6 +6,9 @@ import { PRICE, LIMITS } from '../lib/pricing.js';
 import { fetchUsageRuns, spentOnDay } from '../lib/usage.js';
 import { estimateRun } from '../lib/estimate.js';
 
+// 'false'(문자열)도 거짓으로 취급 — JSON 으로 오가며 문자열이 되는 경우가 많다.
+const truthyFlag = (v) => v === true || v === 'true' || v === 1 || v === '1';
+
 const ART_STYLES = ['auto', 'isometric', 'comic', 'watercolor', 'cinematic', 'retro', 'clay', 'pixar'];
 const TONES = ['documentary', 'humorous', 'storytelling', 'mystery'];
 // src/lib/agency.ts 의 id 목록과 동일하게 유지 (web/ 은 src/ 를 import 하지 않는 별도 배포 대상이라 중복 보관).
@@ -42,9 +45,11 @@ export default async function handler(req, res) {
   }
 
   const willResearch = String(body.topic || '').trim() !== '' || body.mode === 'trend';
+  const wantsVeo = truthyFlag(body.veo);
   const est = estimateRun({
     minutes: Math.max(1, Math.min(20, Number(body.minutes) || 1)),
     research: willResearch,
+    veo: wantsVeo,
   });
   if (est.krw > LIMITS.perRunKrw) {
     return res.status(403).json({
@@ -79,9 +84,6 @@ export default async function handler(req, res) {
     for (const k of keys) if (body[k] !== undefined && body[k] !== null && body[k] !== '') return body[k];
     return undefined;
   };
-  // 'false'(문자열)도 거짓으로 취급 — JSON 으로 오가며 문자열이 되는 경우가 많다.
-  const truthy = (v) => v === true || v === 'true' || v === 1 || v === '1';
-
   const client_payload = {
     // 뉴스 스크립트급 긴 브리핑(타임코드별 섹션 + 참고자료 링크 포함)도 안 잘리게 넉넉히 허용
     // (200자 제한이 "충실 반영" 기능을 무력화시켰던 전례가 있음). GitHub repository_dispatch
@@ -90,7 +92,7 @@ export default async function handler(req, res) {
     content_mode: ['auto', 'trend', 'basics'].includes(pick('mode', 'content_mode')) ? pick('mode', 'content_mode') : 'auto',
     content_level: ['basic', 'intermediate', 'expert'].includes(pick('level', 'content_level')) ? pick('level', 'content_level') : 'expert',
     // 기본은 업로드 안 함 — 유료 업로드는 명시적으로 켤 때만.
-    do_upload: truthy(pick('upload', 'do_upload')) ? 'true' : 'false',
+    do_upload: truthyFlag(pick('upload', 'do_upload')) ? 'true' : 'false',
     // 길이는 1분 고정이 기본 — 값이 안 오면 예전 기본값(10분)으로 떨어져 비용이 10배가 된다.
     target_minutes: String(Math.max(1, Math.min(20, Number(pick('minutes', 'target_minutes')) || 1))),
     // 업로드 대상 채널 (default | ch2). 알 수 없는 값은 default 로 안전 처리.
@@ -110,13 +112,15 @@ export default async function handler(req, res) {
     agency: AGENCIES.includes(body.agency) ? body.agency : '',
     // 화면 비율: 16:9(가로) | 9:16(세로 쇼츠). 알 수 없는 값은 빈 값 → 워크플로 기본값(16:9).
     aspect: ['16:9', '9:16'].includes(body.aspect) ? body.aspect : '',
+    // Veo 실사 클립 사용 여부. 켜면 클립당 요금이 붙으므로 명시적으로 켤 때만 'true'.
+    use_veo: wantsVeo ? 'true' : 'false',
   };
 
   // 알 수 없는 키가 섞여 오면 조용히 버리지 말고 응답에 알려준다(오타로 인한 설정 유실 방지).
   const KNOWN = new Set([
     'topic', 'mode', 'content_mode', 'level', 'content_level', 'upload', 'do_upload',
     'minutes', 'target_minutes', 'channel', 'privacy', 'style', 'speed', 'narration_speed', 'password',
-    'art', 'art_style', 'tone', 'narration_tone', 'agency', 'aspect',
+    'art', 'art_style', 'tone', 'narration_tone', 'agency', 'aspect', 'veo',
   ]);
   const ignored = Object.keys(body).filter((k) => !KNOWN.has(k));
 
@@ -148,6 +152,7 @@ export default async function handler(req, res) {
       narration_tone: client_payload.narration_tone || '(워크플로 기본값)',
       agency: client_payload.agency || '(지정 안 함)',
       aspect: client_payload.aspect || '(워크플로 기본값)',
+      use_veo: client_payload.use_veo,
     },
     ...(ignored.length ? { ignoredKeys: ignored } : {}),
   });

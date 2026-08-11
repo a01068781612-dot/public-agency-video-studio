@@ -11,9 +11,11 @@ export default async function handler(req, res) {
   const minutes = Math.max(1, Math.min(20, Number(q.minutes) || 1));
   // 주제를 지정하거나 트렌드 모드면 웹서치를 한다(src/pipeline/run.ts 와 같은 조건).
   const research = q.research === undefined ? true : q.research !== 'false' && q.research !== '0';
+  // veo 를 안 주면 서버 기본값(USE_VEO)을 따른다.
+  const veo = q.veo === undefined ? undefined : q.veo !== 'false' && q.veo !== '0';
 
   const { researchIn, samples } = await calibrate();
-  const est = estimateRun({ minutes, research, researchIn });
+  const est = estimateRun({ minutes, research, researchIn, veo });
 
   return res.status(200).json({
     minutes,

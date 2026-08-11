@@ -1,6 +1,6 @@
 // 실행 1회 예상 비용 계산 — 견적 화면(/api/estimate)과 상한 검사(/api/publish)가 공유한다.
 // 두 곳이 다른 값을 쓰면 "견적은 통과인데 실행은 거부" 같은 모순이 생기므로 한 곳에 둔다.
-import { PRICE, cost, r6 } from './pricing.js';
+import { PRICE, VEO, cost, r6 } from './pricing.js';
 
 // 실측 기반 기본 소비량 (2026-08 기준, Opus 4.8 + ElevenLabs + Gemini 이미지).
 export const MODEL = {
@@ -18,11 +18,14 @@ export const MODEL = {
 };
 
 /**
- * @param {{minutes:number, research:boolean, researchIn?:number}} opts
+ * @param {{minutes:number, research:boolean, researchIn?:number, veo?:boolean}} opts
  *   researchIn 을 주면 실측 보정값으로 대체한다.
+ *   veo 를 주면 그 값으로, 안 주면 서버 기본값(USE_VEO)으로 계산한다.
  */
-export function estimateRun({ minutes, research, researchIn }) {
+export function estimateRun({ minutes, research, researchIn, veo }) {
   const m = { ...MODEL, ...(researchIn ? { researchIn } : {}) };
+  const useVeo = veo === undefined ? VEO.enabled : Boolean(veo);
+  const veoSeconds = useVeo ? VEO.clipCount * VEO.clipSeconds : 0;
 
   const usage = {
     claudeIn: (research ? m.researchIn : 0) + m.scriptIn,
@@ -30,6 +33,7 @@ export function estimateRun({ minutes, research, researchIn }) {
     ttsChars: Math.round(m.charsPerMin * minutes),
     geminiImages: m.images,
     images: 0,
+    veoSeconds,
   };
 
   const breakdown = {
@@ -37,7 +41,14 @@ export function estimateRun({ minutes, research, researchIn }) {
     script: r6((m.scriptIn * PRICE.claudeIn + m.scriptOutPerMin * minutes * PRICE.claudeOut) / 1e6),
     tts: r6((usage.ttsChars / 1000) * PRICE.tts1k),
     images: r6(m.images * PRICE.geminiImage),
+    veo: r6(veoSeconds * PRICE.veoSec),
   };
   const usd = cost(usage);
-  return { usage, breakdown, usd: r6(usd), krw: Math.round(usd * PRICE.usdKrw) };
+  return {
+    usage,
+    breakdown,
+    veo: { enabled: useVeo, clips: useVeo ? VEO.clipCount : 0, seconds: veoSeconds },
+    usd: r6(usd),
+    krw: Math.round(usd * PRICE.usdKrw),
+  };
 }

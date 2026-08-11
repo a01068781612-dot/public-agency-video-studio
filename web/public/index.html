@@ -299,6 +299,11 @@
         </p>
 
         <div class="switch">
+          <input id="veo" type="checkbox" />
+          <label for="veo" style="margin: 0">실사 영상 클립 넣기 (Veo) — 분위기·배경용 짧은 실사 컷 · <b>비용이 크게 올라갑니다</b></label>
+        </div>
+
+        <div class="switch">
           <input id="upload" type="checkbox" checked />
           <label for="upload" style="margin: 0">완성되면 <b>유튜브에 바로 전체공개</b>로 발행 — 확인 절차 없음 · 끄면 렌더만</label>
         </div>
@@ -403,17 +408,25 @@
       async function refreshEstimate() {
         const minutes = TARGET_MINUTES;
         const willResearch = $('topic').value.trim() !== '' || $('mode').value === 'trend';
+        const useVeo = $('veo').checked;
         try {
-          const r = await fetch(`/api/estimate?minutes=${minutes}&research=${willResearch}`);
+          const r = await fetch(`/api/estimate?minutes=${minutes}&research=${willResearch}&veo=${useVeo}`);
           const d = await r.json();
           if (!r.ok) throw new Error(d.error || '견적 조회 실패');
+          const over = d.krw > d.limits.perRunKrw;
           $('estAmt').textContent = `약 ${d.krw.toLocaleString()}원 ($${d.usd.toFixed(2)})`;
+          $('estAmt').style.color = over ? '#ffa8a8' : '';
           const parts = [
             `리서치 ${fmtUsd(d.breakdown.research)}`,
             `대본 ${fmtUsd(d.breakdown.script)}`,
             `나레이션 ${fmtUsd(d.breakdown.tts)}`,
+            `이미지 ${fmtUsd(d.breakdown.images)}`,
           ];
-          $('estSub').textContent = `${minutes}분 · ${parts.join(' · ')} — ${d.note}`;
+          if (d.veo.enabled) parts.push(`실사영상 ${fmtUsd(d.breakdown.veo)} (${d.veo.clips}클립 ${d.veo.seconds}초)`);
+          const warn = over
+            ? ` ⚠️ 1회 상한 ${d.limits.perRunKrw.toLocaleString()}원을 넘어 실행이 차단됩니다.`
+            : '';
+          $('estSub').textContent = `${minutes}분 · ${parts.join(' · ')} — ${d.note}${warn}`;
         } catch (e) {
           $('estAmt').textContent = '—';
           $('estSub').textContent = '예상 비용을 계산하지 못했어요: ' + e.message;
@@ -426,6 +439,7 @@
       };
       $('mode').addEventListener('change', refreshEstimate);
       $('topic').addEventListener('input', scheduleEstimate);
+      $('veo').addEventListener('change', refreshEstimate);
       refreshEstimate();
 
       // 비밀번호를 넣기 전에는 제작 버튼을 잠가 둔다 — 견적을 본 뒤 비밀번호를 입력하는 것이
@@ -473,7 +487,7 @@
               upload: $('upload').checked, password: $('pw').value,
               style: $('style').value,
               art: $('art').value, tone: $('tone').value,
-              agency: $('agency').value, aspect: $('aspect').value,
+              agency: $('agency').value, aspect: $('aspect').value, veo: $('veo').checked,
               // 업로드를 켜면 렌더가 끝나는 대로 곧바로 전체공개(public)로 발행한다.
               // (사람이 확인하고 누르는 단계 없이 자동으로 올라간다 — 체크박스 라벨에 명시.)
               privacy: $('upload').checked ? 'public' : '',

@@ -48,6 +48,10 @@ on:
         description: '화면 비율 (16:9 가로 | 9:16 세로 쇼츠). 비우면 16:9'
         required: false
         default: ''
+      use_veo:
+        description: 'Veo 실사 클립 사용 (true | false). 켜면 회당 비용이 크게 오름'
+        required: false
+        default: ''
   # 웹앱/외부에서 트리거 (client_payload 로 topic 전달)
   repository_dispatch:
     types: [publish-video]
@@ -89,6 +93,11 @@ jobs:
       AGENCY: ${{ github.event.inputs.agency || github.event.client_payload.agency || '' }}
       # 화면 비율: 16:9(가로, 기본) | 9:16(세로 쇼츠). 렌더 해상도와 이미지 생성 비율이 함께 바뀐다.
       ASPECT_RATIO: ${{ github.event.inputs.aspect || github.event.client_payload.aspect || vars.ASPECT_RATIO || '16:9' }}
+      # ── Veo 실사 클립 ── 켜면 클립당 요금이 붙어 회당 비용이 크게 오르므로 기본은 꺼둔다.
+      USE_VEO: ${{ github.event.inputs.use_veo || github.event.client_payload.use_veo || vars.USE_VEO || 'false' }}
+      VEO_CLIP_COUNT: ${{ vars.VEO_CLIP_COUNT || '4' }}
+      # Veo API 는 4·6·8초만 허용한다(5초 불가).
+      VEO_CLIP_SECONDS: ${{ vars.VEO_CLIP_SECONDS || '4' }}
       CONTENT_MODE: ${{ github.event.inputs.content_mode || github.event.client_payload.content_mode || vars.CONTENT_MODE || 'auto' }}
       # 대본 난이도/전문성: basic | intermediate | expert. 기본 expert(전문가용).
       CONTENT_LEVEL: ${{ github.event.inputs.content_level || github.event.client_payload.content_level || vars.CONTENT_LEVEL || 'expert' }}
