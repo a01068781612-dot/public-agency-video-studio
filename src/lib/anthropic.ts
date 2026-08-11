@@ -124,9 +124,15 @@ export async function generateScript(params: {
     // illustration 은 "무엇을 그릴지"만 쓰게 한다. "어떻게 그릴지"(화풍)는 이미지 생성 직전에
     // artStyle.ts 가 붙이므로, 여기서 화풍까지 지시하면 두 지시가 충돌한다.
     'illustration 은 이 씬을 그림 한 장으로 그리기 위한 영어 묘사다. 나레이션이 말하는 사물·행동·장면이 무엇인지만 구체적으로 적는다(은유 금지). 화풍·색·터치는 적지 마라 — 그건 별도로 지정된다. 화면에 글자는 넣지 않는다(AI 가 만든 글자는 항상 깨져 나온다).',
-    'illustration 묘사는 "무엇이 화면에 보이는가"를 카메라로 찍듯 적는다: 등장하는 사람(직업·복장·행동), 장소, 눈에 보이는 사물, 시점과 거리. 예: "firefighters in full turnout gear directing a hose at a burning warehouse loading dock at night, viewed from across the yard". 추상 개념("innovation", "data flowing")이나 도표를 그리라고 하지 마라 — 그런 내용이면 애초에 diagram 씬으로 갔어야 한다.',
+    'illustration 묘사는 "무엇이 화면에 보이는가"를 카메라로 찍듯 적는다: 등장하는 사람(직업·복장·행동), 장소, 눈에 보이는 사물, 시점과 거리. 예: "Korean firefighters in navy turnout gear directing a hose at a burning warehouse loading dock at night, viewed from across the yard". 추상 개념("innovation", "data flowing")이나 도표를 그리라고 하지 마라 — 그런 내용이면 애초에 diagram 씬으로 갔어야 한다.',
+    // 한국 기관 홍보물인데 그림이 미국 풍경으로 나오면 그대로 쓸 수 없다. 이미지 모델은
+    // 국적을 안 적으면 기본값으로 미국식 장면(영문 표기 소방차 등)을 그린다 — 매번 명시한다.
+    '★배경은 반드시 한국이다★ illustration 묘사에 등장하는 사람은 "Korean"으로 명시하고, 장소·건물·차량·거리 풍경도 한국식으로 적는다(예: "Korean street", "Korean office building", "Korean government office interior"). 국적을 안 적으면 이미지 모델이 미국 장면을 그려버려서 한국 기관 홍보물로 못 쓴다.',
     ...(agency
-      ? [`illustration 은 가능한 한 "${agency.label}"의 실제 현장이 떠오르는 장면으로 잡는다 — 그 기관 소관 분야(${agency.domain})에서 실제로 일하는 사람과 쓰는 장비·시설·서류가 화면에 보이게 한다. 다만 기관 로고·표장·제복 마크·문서의 글자 같은 식별 표식은 절대 그리지 마라(AI 가 만든 로고는 가짜 표장이 되고 글자는 깨진다). 복장과 장비, 공간의 성격만으로 어떤 분야인지 드러나게 한다.`]
+      ? [
+          `★모든 illustration 은 "${agency.label}" 현장이어야 한다★ 이 기관 소관 분야(${agency.domain})에서 실제로 일하는 한국인 담당자와, 그 분야에서 실제로 쓰는 장비·시설·서류·화면이 매 컷에 보이게 한다. 주제가 일반적인 내용이더라도 장면은 이 기관 맥락으로 옮겨서 묘사한다 — 예를 들어 "회의하는 사람들"이 아니라 "그 기관 사무실에서 해당 업무 자료를 놓고 회의하는 한국인 공무원들"처럼 적는다. 기관과 아무 상관 없는 일반 사무실·해외 풍경·스톡사진 같은 장면은 쓰지 마라.`,
+          '단, 기관 로고·표장·현판·제복의 마크·문서에 적힌 글자 같은 식별 표식은 절대 그리지 마라 — AI 가 만든 정부 표장은 실재하지 않는 가짜 표장이 되고, 글자는 항상 깨져 나온다. 복장·장비·공간의 성격만으로 어떤 기관인지 드러나게 한다.',
+        ]
       : []),
   ].join(' ');
 
