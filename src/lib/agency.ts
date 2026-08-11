@@ -34,6 +34,10 @@ export const AGENCIES: Agency[] = [
   { id: 'molit', label: '국토교통부', domain: '국토개발·주택·교통·건설' },
   { id: 'mof', label: '해양수산부', domain: '해양·수산·항만' },
   { id: 'mss', label: '중소벤처기업부', domain: '중소기업·소상공인·창업벤처' },
+  // ── 처 ──
+  { id: 'mpm', label: '인사혁신처', domain: '공무원 인사·인재개발' },
+  { id: 'moleg', label: '법제처', domain: '법령 심사·정비' },
+  { id: 'mfds', label: '식품의약품안전처', domain: '식품·의약품 안전관리' },
   // ── 청 ──
   { id: 'nts', label: '국세청', domain: '국세 부과·징수' },
   { id: 'customs', label: '관세청', domain: '관세·수출입 통관' },
@@ -55,6 +59,13 @@ export const AGENCIES: Agency[] = [
   { id: 'nacc', label: '행정중심복합도시건설청', domain: '세종시 건설·관리' },
   { id: 'kasa', label: '우주항공청', domain: '우주항공산업 육성' },
   { id: 'okva', label: '재외동포청', domain: '재외동포 정책' },
+  // ── 위원회 ──
+  { id: 'ftc', label: '공정거래위원회', domain: '시장경쟁·소비자보호·공정거래' },
+  { id: 'fsc', label: '금융위원회', domain: '금융정책·금융감독' },
+  { id: 'acrc', label: '국민권익위원회', domain: '부패방지·국민고충처리' },
+  { id: 'kcc', label: '방송통신위원회', domain: '방송·통신 정책규제' },
+  { id: 'pipc', label: '개인정보보호위원회', domain: '개인정보보호' },
+  { id: 'nssc', label: '원자력안전위원회', domain: '원자력 안전규제' },
 ];
 
 const BY_ID = new Map(AGENCIES.map((a) => [a.id, a]));

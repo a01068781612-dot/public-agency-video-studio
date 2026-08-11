@@ -44,8 +44,8 @@
       }
       input:focus, select:focus, textarea:focus { outline: none; border-color: var(--accent2); }
       .topic { font-size: 18px; min-height: 120px; line-height: 1.5; resize: vertical; }
-      .row { display: flex; gap: 12px; }
-      .row > div { flex: 1; }
+      .row { display: flex; flex-wrap: wrap; gap: 12px; }
+      .row > div { flex: 1 1 130px; min-width: 130px; }
       .switch { display: flex; align-items: center; gap: 10px; margin-top: 18px; color: var(--sub); font-size: 14px; }
       .switch input { width: 20px; height: 20px; accent-color: var(--accent); }
       button.go {
@@ -177,11 +177,65 @@
 
         <div class="row">
           <div>
-            <label for="mode">모드</label>
-            <select id="mode">
-              <option value="auto">자동(주제 있으면 그걸로)</option>
-              <option value="trend">최신 트렌드</option>
-              <option value="basics">기초 상식</option>
+            <label for="agency">홍보 타겟 기관</label>
+            <select id="agency">
+              <option value="" selected>지정 안 함(일반 공공부문)</option>
+              <optgroup label="부">
+                <option value="moef">기획재정부</option>
+                <option value="moe">교육부</option>
+                <option value="msit">과학기술정보통신부</option>
+                <option value="mofa">외교부</option>
+                <option value="unikorea">통일부</option>
+                <option value="moj">법무부</option>
+                <option value="mnd">국방부</option>
+                <option value="mois">행정안전부</option>
+                <option value="mpva">국가보훈부</option>
+                <option value="mcst">문화체육관광부</option>
+                <option value="mafra">농림축산식품부</option>
+                <option value="motie">산업통상자원부</option>
+                <option value="mohw">보건복지부</option>
+                <option value="me">환경부</option>
+                <option value="moel">고용노동부</option>
+                <option value="mogef">여성가족부</option>
+                <option value="molit">국토교통부</option>
+                <option value="mof">해양수산부</option>
+                <option value="mss">중소벤처기업부</option>
+              </optgroup>
+              <optgroup label="처">
+                <option value="mpm">인사혁신처</option>
+                <option value="moleg">법제처</option>
+                <option value="mfds">식품의약품안전처</option>
+              </optgroup>
+              <optgroup label="청">
+                <option value="nts">국세청</option>
+                <option value="customs">관세청</option>
+                <option value="pps">조달청</option>
+                <option value="kostat">통계청</option>
+                <option value="spo">검찰청</option>
+                <option value="mma">병무청</option>
+                <option value="dapa">방위사업청</option>
+                <option value="police">경찰청</option>
+                <option value="nfa">소방청</option>
+                <option value="khs">국가유산청</option>
+                <option value="rda">농촌진흥청</option>
+                <option value="kfs">산림청</option>
+                <option value="kipo">특허청</option>
+                <option value="kdca">질병관리청</option>
+                <option value="kma">기상청</option>
+                <option value="kcg">해양경찰청</option>
+                <option value="saemangeum">새만금개발청</option>
+                <option value="nacc">행정중심복합도시건설청</option>
+                <option value="kasa">우주항공청</option>
+                <option value="okva">재외동포청</option>
+              </optgroup>
+              <optgroup label="위원회">
+                <option value="ftc">공정거래위원회</option>
+                <option value="fsc">금융위원회</option>
+                <option value="acrc">국민권익위원회</option>
+                <option value="kcc">방송통신위원회</option>
+                <option value="pipc">개인정보보호위원회</option>
+                <option value="nssc">원자력안전위원회</option>
+              </optgroup>
             </select>
           </div>
           <div>
@@ -194,18 +248,19 @@
             </select>
           </div>
           <div>
+            <label for="mode">모드</label>
+            <select id="mode">
+              <option value="auto">자동(주제 있으면 그걸로)</option>
+              <option value="trend">최신 트렌드</option>
+              <option value="basics">기초 상식</option>
+            </select>
+          </div>
+          <div>
             <label for="level">난이도</label>
             <select id="level">
               <option value="basic">쉽게(초보용)</option>
               <option value="intermediate">중급</option>
               <option value="expert" selected>전문가용(깊이있게)</option>
-            </select>
-          </div>
-          <div>
-            <label for="channel">채널</label>
-            <select id="channel">
-              <option value="default" selected>기본 채널</option>
-              <option value="ch2">두 번째 채널</option>
             </select>
           </div>
           <div>
@@ -237,55 +292,6 @@
               <option value="humorous">유머러스</option>
               <option value="storytelling">스토리텔링</option>
               <option value="mystery">미스터리</option>
-            </select>
-          </div>
-          <div>
-            <label for="agency">홍보 타겟 기관</label>
-            <select id="agency">
-              <option value="" selected>지정 안 함(일반 공공부문)</option>
-              <optgroup label="부">
-                <option value="moef">기획재정부</option>
-                <option value="moe">교육부</option>
-                <option value="msit">과학기술정보통신부</option>
-                <option value="mofa">외교부</option>
-                <option value="unikorea">통일부</option>
-                <option value="moj">법무부</option>
-                <option value="mnd">국방부</option>
-                <option value="mois">행정안전부</option>
-                <option value="mpva">국가보훈부</option>
-                <option value="mcst">문화체육관광부</option>
-                <option value="mafra">농림축산식품부</option>
-                <option value="motie">산업통상자원부</option>
-                <option value="mohw">보건복지부</option>
-                <option value="me">환경부</option>
-                <option value="moel">고용노동부</option>
-                <option value="mogef">여성가족부</option>
-                <option value="molit">국토교통부</option>
-                <option value="mof">해양수산부</option>
-                <option value="mss">중소벤처기업부</option>
-              </optgroup>
-              <optgroup label="청">
-                <option value="nts">국세청</option>
-                <option value="customs">관세청</option>
-                <option value="pps">조달청</option>
-                <option value="kostat">통계청</option>
-                <option value="spo">검찰청</option>
-                <option value="mma">병무청</option>
-                <option value="dapa">방위사업청</option>
-                <option value="police">경찰청</option>
-                <option value="nfa">소방청</option>
-                <option value="khs">국가유산청</option>
-                <option value="rda">농촌진흥청</option>
-                <option value="kfs">산림청</option>
-                <option value="kipo">특허청</option>
-                <option value="kdca">질병관리청</option>
-                <option value="kma">기상청</option>
-                <option value="kcg">해양경찰청</option>
-                <option value="saemangeum">새만금개발청</option>
-                <option value="nacc">행정중심복합도시건설청</option>
-                <option value="kasa">우주항공청</option>
-                <option value="okva">재외동포청</option>
-              </optgroup>
             </select>
           </div>
         </div>
@@ -405,7 +411,7 @@
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               topic, mode: $('mode').value, minutes: Number($('minutes').value),
-              level: $('level').value, channel: $('channel').value,
+              level: $('level').value,
               upload: $('upload').checked, password: $('pw').value,
               style: $('style').value,
               art: $('art').value, tone: $('tone').value,
@@ -659,7 +665,7 @@
         const r = window.__review; if (!r) return;
         const btn = $('btnPublish'); btn.disabled = true; btn.textContent = '발행 중…';
         try {
-          await post('/api/setprivacy', { videoId: r.videoId, status: 'public', channel: $('channel').value, password: $('pw').value });
+          await post('/api/setprivacy', { videoId: r.videoId, status: 'public', password: $('pw').value });
           rvtoast('🚀 발행 요청됨! 잠시 후 공개로 바뀝니다.', 'info');
           setTimeout(loadReview, 12000); // 전환 워크플로 반영 대기
         } catch (e) { rvtoast('⚠️ ' + e.message, 'err'); btn.disabled = false; btn.textContent = '✅ 발행 (공개)'; }

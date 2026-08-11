@@ -138,4 +138,8 @@ export type RenderManifest = {
   theme?: 'light' | 'dark';
   /** 배경음악 staticFile 상대경로 (예: audio/bgm.wav). 없으면 무음. */
   bgm?: string;
+  /** 홍보 타겟 기관 로고/마스코트 staticFile 상대경로 (예: agencies/police.png). 파일이 없으면 워터마크 없이 진행. */
+  agencyLogoPath?: string;
+  /** 워터마크 옆에 같이 표기할 기관명. */
+  agencyLabel?: string;
 };

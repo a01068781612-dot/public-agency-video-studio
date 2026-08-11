@@ -8,8 +8,10 @@ const TONES = ['documentary', 'humorous', 'storytelling', 'mystery'];
 const AGENCIES = [
   'moef', 'moe', 'msit', 'mofa', 'unikorea', 'moj', 'mnd', 'mois', 'mpva', 'mcst',
   'mafra', 'motie', 'mohw', 'me', 'moel', 'mogef', 'molit', 'mof', 'mss',
+  'mpm', 'moleg', 'mfds',
   'nts', 'customs', 'pps', 'kostat', 'spo', 'mma', 'dapa', 'police', 'nfa', 'khs',
   'rda', 'kfs', 'kipo', 'kdca', 'kma', 'kcg', 'saemangeum', 'nacc', 'kasa', 'okva',
+  'ftc', 'fsc', 'acrc', 'kcc', 'pipc', 'nssc',
 ];
 
 export default async function handler(req, res) {

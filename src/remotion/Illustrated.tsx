@@ -36,9 +36,33 @@ export const AiIllustrated: React.FC<RenderManifest> = (manifest) => {
         </Sequence>
       ))}
       {manifest.bgm && <BackgroundMusic src={manifest.bgm} total={manifest.totalDurationInFrames} />}
+      {manifest.agencyLogoPath && <AgencyWatermark src={manifest.agencyLogoPath} label={manifest.agencyLabel} />}
     </AbsoluteFill>
   );
 };
+
+/** 홍보 타겟 기관 로고/마스코트 워터마크 — 우측 상단에 은은하게, 영상 전체에 고정 표시. */
+const AgencyWatermark: React.FC<{ src: string; label?: string }> = ({ src, label }) => (
+  <div
+    style={{
+      position: 'absolute',
+      top: 36,
+      right: 40,
+      display: 'flex',
+      alignItems: 'center',
+      gap: 10,
+      padding: '8px 16px 8px 10px',
+      borderRadius: 999,
+      background: 'rgba(15,15,18,0.55)',
+      opacity: 0.92,
+    }}
+  >
+    <Img src={staticFile(src)} style={{ height: 40, width: 40, objectFit: 'contain', borderRadius: '50%' }} />
+    {label && (
+      <span style={{ fontFamily: PRETENDARD, fontSize: 22, fontWeight: 700, color: '#fff' }}>{label}</span>
+    )}
+  </div>
+);
 
 const SceneShot: React.FC<{ scene: RenderManifest['scenes'][number]; index: number; theme: typeof lightTheme }> = ({
   scene,

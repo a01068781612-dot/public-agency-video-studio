@@ -91,9 +91,11 @@ async function stepScript(): Promise<Script> {
   if (!isBriefTopic) {
     if (customTopic || mode === 'trend') {
       // 주제 지정/트렌드 모드: 그 주제의 최신 소식을 조사. 대상기관이 있고 주제가 없으면
-      // 그 기관 소관 분야와 AI 의 접점을 검색어로 삼아 리서치도 처음부터 그쪽으로 잡는다.
+      // 그 기관이 실제로 벌인 AI 관련 사업·정책까지 검색어에 넣는다 — 도메인 일반론보다
+      // "이 기관이 진짜로 한 일"이 나오면 보도자료에 그대로 쓸 수 있어 훨씬 값지다.
       console.log('  · 최신 정보 웹서치 조사 중...');
-      const researchTopic = customTopic ?? (agency ? `AI와 ${agency.domain}` : undefined);
+      const researchTopic =
+        customTopic ?? (agency ? `"${agency.label}"의 AI 관련 최근 정책·사업 소식, 그리고 AI와 ${agency.domain} 분야의 최신 동향` : undefined);
       research = await researchRecentInfo({ dateLabel, topic: researchTopic });
     } else {
       // basics(기초 개념) 모드: 주제는 모델이 자동으로 고르므로 특정 주제 검색은 못 하지만,
@@ -188,6 +190,20 @@ async function stepVoice(): Promise<RenderManifest | null> {
   const visualTheme = pickVisualThemeMode(script.title);
   console.log(`  · 시각 테마: ${visualTheme}`);
 
+  // 홍보 타겟 기관 로고/마스코트 워터마크 — public/agencies/<id>.png 가 실제로 있을 때만 켠다.
+  // (파일이 없으면 조용히 워터마크 없이 진행 — 기관 목록 39곳 전부에 로고를 미리 요구하지 않는다.)
+  const agency = resolveAgency(config.targetAgency);
+  let agencyLogoPath: string | undefined;
+  if (agency) {
+    const logoFile = path.join(PUBLIC_DIR, 'agencies', `${agency.id}.png`);
+    if (await fs.access(logoFile).then(() => true).catch(() => false)) {
+      agencyLogoPath = `agencies/${agency.id}.png`;
+      console.log(`  · 기관 워터마크: ${agency.label} (agencies/${agency.id}.png)`);
+    } else {
+      console.log(`  · 기관 워터마크 없음(agencies/${agency.id}.png 파일 없음) — 워터마크 생략`);
+    }
+  }
+
   const manifest: RenderManifest = {
     title: script.title,
     topic: script.topic,
@@ -199,6 +215,8 @@ async function stepVoice(): Promise<RenderManifest | null> {
     createdAt: new Date().toISOString(),
     theme: visualTheme,
     bgm,
+    agencyLogoPath,
+    agencyLabel: agency?.label,
   };
   await writeJson(MANIFEST_PATH, manifest);
   const mins = (startFrame / FPS / 60).toFixed(1);
