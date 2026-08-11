@@ -3,6 +3,7 @@ import {
   AbsoluteFill,
   Audio,
   Img,
+  OffthreadVideo,
   Sequence,
   staticFile,
   useCurrentFrame,
@@ -143,6 +144,21 @@ const SceneShot: React.FC<{ scene: RenderManifest['scenes'][number]; index: numb
     return (
       <AbsoluteFill style={{ opacity: fade }}>
         <FlatIconSlide icon={scene.icon} theme={theme} />
+        <WordCaption narration={scene.narration} durationInFrames={dur} />
+      </AbsoluteFill>
+    );
+  }
+
+  // 실사 클립이 있으면 그걸 튼다. 클립은 그 자체가 움직이므로 켄번즈(줌·패닝)를 걸지 않는다 —
+  // 두 움직임이 겹치면 화면이 출렁여 보인다. 클립이 씬보다 짧으면 마지막 프레임에서 멈춘다.
+  if (scene.clipPath) {
+    return (
+      <AbsoluteFill style={{ opacity: fade, backgroundColor: '#000' }}>
+        <OffthreadVideo
+          src={staticFile(scene.clipPath)}
+          muted // 나레이션과 겹치지 않게 (Veo 음성은 애초에 끄고 생성한다)
+          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+        />
         <WordCaption narration={scene.narration} durationInFrames={dur} />
       </AbsoluteFill>
     );

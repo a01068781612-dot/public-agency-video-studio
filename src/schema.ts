@@ -38,6 +38,9 @@ export const VisualKind = z.enum([
   // 실제 장면을 그린 AI 일러스트 한 장. 나머지 종류는 전부 코드(글자·도형)로 그려지므로,
   // 화면에 "그림"이 들어가는 유일한 씬이다 — 이게 없으면 영상 전체가 글자만 남는다.
   'illustration',
+  // illustration 과 같지만, 그 그림을 시작 프레임으로 짧은 실사 영상까지 만든다(Veo).
+  // 초당 과금이라 비싸므로 실행당 몇 컷만 허용된다 — 대본이 "가장 움직임이 필요한" 대목에만 쓴다.
+  'liveaction',
   'outro', // 마무리/구독 유도
 ]);
 
@@ -79,9 +82,15 @@ export const SceneSchema = z.object({
   heading: z.string(), // 화면 상단 짧은 제목
   narration: z.string(), // 성우가 읽을 나레이션 (해당 언어)
   bullets: z.array(z.string()).max(5).default([]),
-  // AI 일러스트용 영어 시각 묘사. visual="illustration" 씬에서는 필수(이게 그림의 소재가 된다).
+  // AI 일러스트용 영어 시각 묘사. visual="illustration"/"liveaction" 씬에서는 필수
+  // (이게 그림의 소재가 되고, liveaction 은 그 그림을 움직이게 만든다).
   // title/outro 는 보통 icon 으로 렌더링되므로 그쪽에서는 폴백 용도로만 쓰인다.
   illustration: z.string().default(''),
+  // liveaction 전용 — "무엇이 어떻게 움직이는가"를 적는 영어 묘사(장면 설명이 아니라 움직임).
+  motion: z.string().optional(),
+  // liveaction 전용 — 클립 길이(초). Veo API 가 4·6·8 만 허용한다.
+  // 움직임이 단순하면 4, 전개가 있으면 6, 넓은 현장을 훑으면 8.
+  clipSeconds: z.union([z.literal(4), z.literal(6), z.literal(8)]).optional(),
   // title/outro 씬에서 실제로 렌더링되는 평면 2D 아이콘. 이 씬이 설명하는 구체적 대상과
   // 맞는 아이콘을 고른다(예: 보안 얘기면 lock, 데이터 얘기면 database).
   icon: IconKind.optional(),
@@ -122,6 +131,9 @@ export type Script = z.infer<typeof ScriptSchema>;
 export type SceneWithAudio = Scene & {
   audioPath: string; // staticFile 상대경로 (예: audio/s1.mp3)
   imagePath?: string; // 일러스트 staticFile 상대경로 (예: img/s1.png) — illustrated 엔진용
+  // 실사 클립 staticFile 상대경로 (예: clip/s1.mp4) — liveaction 씬에서만.
+  // 생성에 실패하면 없을 수 있고, 그때는 imagePath 로 폴백해 정지 이미지로 렌더한다.
+  clipPath?: string;
   durationSec: number; // 측정된 오디오 길이
   startFrame: number;
   durationInFrames: number;

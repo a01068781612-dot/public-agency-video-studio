@@ -138,6 +138,15 @@ export const config = {
   // 장수가 정해지는 구조라, 상한이 없으면 한 편이 폭주해 요금이 몇 배로 뛴다.
   maxImagesPerRun: Number(optional('MAX_IMAGES_PER_RUN', '6')),
 
+  // ── Veo 실사 클립 ── 초당 과금이라 이미지보다 훨씬 비싸다. 기본은 꺼둔다.
+  useVeo: optional('USE_VEO', 'false').toLowerCase() === 'true',
+  veoModel: optional('VEO_MODEL', 'veo-3.1-lite-generate-preview'),
+  // 실행당 클립 개수 하드 상한. 초과하면 생성하지 않는다(요청 스펙: 최대 4회).
+  veoClipCount: Number(optional('VEO_CLIP_COUNT', '4')),
+  // 클립 길이는 대본이 내용에 맞춰 4·6·8초 중에 고른다. 이 값은 대본이 지정하지
+  // 않았을 때의 기본값 겸, 총 길이 상한 계산의 기준이다.
+  veoClipSeconds: Number(optional('VEO_CLIP_SECONDS', '4')),
+
   // 씬 일러스트 화풍(src/lib/artStyle.ts). auto 면 날짜 기준으로 회차마다 다르게 고른다.
   artStyle: optional('ART_STYLE', 'isometric').toLowerCase(),
   // 나레이션 말투(src/lib/tone.ts): documentary | humorous | storytelling | mystery

@@ -30,6 +30,7 @@ import { synthesizeSpeech } from '../lib/elevenlabs.js';
 import { generateBgm } from '../lib/bgm.js';
 import { renderVideo } from '../lib/render.js';
 import { generateIllustrations } from '../lib/illustrate.js';
+import { generateVideoClip, normalizeClipSeconds } from '../lib/videogen.js';
 import { generateThumbnail } from '../lib/thumbnail.js';
 import { printUsage } from '../lib/usage.js';
 import { uploadVideo, setThumbnail, setPrivacy } from '../lib/youtube.js';
@@ -282,6 +283,54 @@ function renderDeckVideo(): Promise<void> {
 }
 
 /** 3) 영상 렌더 + AI 썸네일 */
+/**
+ * visual="liveaction" 씬의 이미지를 Veo 로 움직이게 만들어 public/clip/*.mp4 로 저장한다.
+ * 반환: { 씬id: staticFile 상대경로 }. 실패한 컷은 빠지고, 호출부는 그 씬을 정지 이미지로 렌더한다.
+ *
+ * 비용 안전장치: 실행당 개수 하드 상한(VEO_CLIP_COUNT)을 넘는 컷은 아예 생성하지 않는다.
+ */
+async function generateLiveActionClips(scenes: SceneWithAudio[]): Promise<Record<string, string>> {
+  const out: Record<string, string> = {};
+  if (!config.useVeo) return out;
+
+  // 이미지가 있는 liveaction 씬만 대상 — 이미지가 시작 프레임이라 없으면 만들 수 없다.
+  const wanted = scenes.filter((s) => s.visual === 'liveaction' && s.imagePath);
+  const cap = Math.max(0, config.veoClipCount);
+  const targets = wanted.slice(0, cap);
+  if (wanted.length > targets.length) {
+    console.warn(
+      `  ⚠ 실사 클립 ${wanted.length}개 중 ${targets.length}개만 생성합니다(VEO_CLIP_COUNT=${cap} 상한). ` +
+        `나머지는 정지 이미지로 렌더됩니다.`,
+    );
+  }
+  if (targets.length === 0) return out;
+
+  const clipDir = path.join(PUBLIC_DIR, 'clip');
+  await fs.mkdir(clipDir, { recursive: true });
+  const totalSec = targets.reduce((s, x) => s + normalizeClipSeconds(x.clipSeconds ?? config.veoClipSeconds), 0);
+  console.log(`  · 실사 클립 생성 중... (${targets.length}개, 총 ${totalSec}초)`);
+
+  for (const [i, scene] of targets.entries()) {
+    const seconds = normalizeClipSeconds(scene.clipSeconds ?? config.veoClipSeconds);
+    try {
+      const imagePng = await fs.readFile(path.join(PUBLIC_DIR, scene.imagePath!));
+      const mp4 = await generateVideoClip({
+        imagePng,
+        // motion 이 비면 화면 묘사로 대체한다 — 없는 것보다 낫다.
+        motionPrompt: (scene.motion || scene.illustration || '').trim() || 'subtle natural motion, slow camera push in',
+        seconds,
+      });
+      const rel = `clip/${scene.id}.mp4`;
+      await fs.writeFile(path.join(PUBLIC_DIR, rel), mp4);
+      out[scene.id] = rel;
+      console.log(`    · 실사 클립 ${i + 1}/${targets.length} (${scene.id}, ${seconds}초) 생성`);
+    } catch (e) {
+      console.warn(`    · 실사 클립 ${scene.id} 실패(무시, 정지 이미지로 대체):`, (e as Error).message);
+    }
+  }
+  return out;
+}
+
 async function stepRender(): Promise<void> {
   // deck 엔진은 manifest 대신 deck.json 을 쓴다.
   if (isDeckEngine()) {
@@ -322,7 +371,13 @@ async function stepRender(): Promise<void> {
     // 흰 배경으로 튀지 않고 영상 전체가 한 톤으로 보이게 한다.
     const imgMap = await generateIllustrations(needsAiImage, manifest.theme === 'dark');
     manifest.scenes = manifest.scenes.map((s) => ({ ...s, imagePath: imgMap[s.id] }));
-    await writeJson(MANIFEST_PATH, manifest); // imagePath 반영 저장(재실행 대비)
+    // 실사 클립 — 방금 만든 그 이미지를 시작 프레임으로 움직이게 한다(image-to-video).
+    // 이미지가 없으면 만들 수 없으므로 반드시 일러스트 생성 뒤에 온다.
+    const clipMap = await generateLiveActionClips(manifest.scenes);
+    if (Object.keys(clipMap).length > 0) {
+      manifest.scenes = manifest.scenes.map((s) => ({ ...s, clipPath: clipMap[s.id] }));
+    }
+    await writeJson(MANIFEST_PATH, manifest); // imagePath/clipPath 반영 저장(재실행 대비)
     const made = Object.keys(imgMap).length;
     console.log(`  · 일러스트 ${made}/${needsAiImage.length}장 완료 → Remotion 합성`);
     // 그림이 필요한 씬이 있는데 한 장도 못 만들었다 = 영상이 통째로 글자 화면만 남는다는 뜻.

@@ -85,6 +85,9 @@ export async function generateScript(params: {
   // 1분 이하 숏폼은 "넘치면 안 되는" 상한 관리가 핵심이다(쇼츠 60초 제한).
   // 반대로 긴 영상은 예나 지금이나 "모자라는" 게 문제라, 두 경우의 지시가 정반대다.
   const isCapped = targetMinutes <= 1;
+  // 실사 클립을 쓸 때만 관련 지시를 넣는다 — 꺼져 있는데 설명하면 모델이 안 되는 씬을 만든다.
+  const useVeo = config.useVeo;
+  const veoClipCount = config.veoClipCount;
 
   // 씬 개수도 분량에 비례해야 한다 — 예전엔 "28~40개"로 고정돼 있어서, 1~3분짜리 홍보용
   // 짧은 영상에 그대로 적용하면 씬 하나가 몇 초짜리로 쪼개져 만들 수 없는 지시가 됐다.
@@ -159,6 +162,13 @@ export async function generateScript(params: {
     '- 첫 씬은 visual="title" 로 후킹 도입(왜 이 주제가 중요한지)을 담는다. visual="title" 은 이 영상 전체에서 딱 이 첫 씬 한 번만 쓴다 — 중간에 장/화제를 전환하고 싶어도 title 을 또 쓰지 마라(그러면 그 씬마다 AI 그림 한 장 + 줌 효과가 반복돼 영상 전체가 "맨날 같은 그림"처럼 보이는 가장 큰 원인이 된다). 장 전환이 필요하면 quote(소제목이나 전환 문장을 강조 문구로) 또는 bullets 를 대신 써라.',
     '- 중간 씬은 illustration / bullets / diagram / comparison / quote / code 여섯 가지로 구성한다(title 은 위에서 말했듯 중간에 쓰지 않는다).',
     '- ★가장 중요★ visual="illustration" 은 실제 장면을 그린 그림 한 장이 화면을 채우는 씬이고, 나머지 다섯 종류는 전부 글자·도형만 나오는 화면이다. 그래서 illustration 이 적으면 영상 전체가 "글자만 나오는 영상"이 되어 홍보물로 쓸 수 없다. 중간 씬의 절반 이상(최소 50%)을 illustration 으로 채워라. 사건 현장, 사람들이 일하는 모습, 장비·시설·서류 같은 실물이 등장하는 대목은 무조건 illustration 으로 간다.',
+    ...(useVeo
+      ? [
+          `- visual="liveaction" 은 그 그림이 실제로 움직이는 짧은 실사 영상이 되는 씬이다. 정지 그림보다 훨씬 강하지만 비싸서 이 영상에서 최대 ${veoClipCount}개만 쓸 수 있다. 가장 효과가 큰 자리에만 배치해라: 도입부 후킹, 화제가 크게 바뀌는 전환점, 마무리 직전. illustration 씬 중 이 자리에 해당하는 것들을 liveaction 으로 바꾸면 된다(둘은 형제 관계라 illustration 필드를 똑같이 채운다).`,
+          '- liveaction 씬은 motion 필드에 "무엇이 어떻게 움직이는지"를 영어로 적는다. 장면 설명(그건 illustration 필드가 담당)이 아니라 움직임만 적는다: 카메라의 움직임(slow push in, pan left, static), 피사체의 움직임(smoke rising, people walking past, hands typing). 예: "slow push in as smoke keeps rising and firefighters move across the frame".',
+          '- liveaction 씬은 clipSeconds 를 내용에 맞춰 4·6·8 중에서 고른다(그 외 값은 불가). 움직임이 단순하고 한 동작이면 4, 동작이 이어지거나 전개가 있으면 6, 넓은 현장을 훑거나 여러 요소가 차례로 보여야 하면 8. 대부분은 4로 충분하다 — 길수록 비싸다.',
+        ]
+      : []),
     isShortForm
       ? '- ★단조로움 방지★ 씬 수가 적은 짧은 영상이니 diagram/comparison/quote/code 를 억지로 다 채우려 하지 마라 — 내용에 맞는 타입 1~2가지만 자연스럽게 섞고, 나머지는 illustration 으로 간다. 글자 화면(bullets/quote 등)이 연속 두 씬을 넘지 않게 사이사이에 illustration 을 끼워 넣어라.'
       : '- ★단조로움 방지(반드시 지켜라)★ 글자만 나오는 씬(bullets/quote/code)이 세 씬 연속으로 오지 않게 하고, 그 사이사이에 illustration 을 넣어 화면이 계속 바뀌게 한다. bullets 씬은 전체 중간 씬의 1/5을 넘기지 마라. 나열식으로 처리하고 싶을 때 습관적으로 bullets 를 쓰지 말고, 관계·흐름이면 diagram, 두 대상이면 comparison, 눈에 보이는 장면이면 illustration 으로 바꿔라. diagram 2개 내외, comparison 1~2개, quote 1~3개 정도면 충분하다.',

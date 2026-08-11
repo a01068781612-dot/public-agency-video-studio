@@ -10,7 +10,13 @@ import { OUT_DIR } from '../config.js';
  * 단가는 여기 두지 않는다(계정 요금제마다 다름) — 합산할 때 환경변수로 받는다.
  */
 
-export type UsageKind = 'claude' | 'openai-text' | 'openai-image' | 'gemini-image' | 'elevenlabs';
+export type UsageKind =
+  | 'claude'
+  | 'openai-text'
+  | 'openai-image'
+  | 'gemini-image'
+  | 'elevenlabs'
+  | 'veo-video';
 
 export interface UsageEntry {
   kind: UsageKind;
@@ -24,6 +30,8 @@ export interface UsageEntry {
   chars?: number;
   /** 이미지는 장 수로 과금된다. */
   images?: number;
+  /** 영상(Veo)은 초 단위로 과금된다. */
+  seconds?: number;
 }
 
 const USAGE_PATH = path.join(OUT_DIR, 'usage.json');
@@ -45,14 +53,15 @@ export function recordUsage(entry: UsageEntry): void {
 
 /** 항목별 합계 — 사람이 읽는 요약과 웹앱 누적 집계에 함께 쓴다. */
 export function summarize(list: UsageEntry[]) {
-  const by: Record<string, { inputTokens: number; outputTokens: number; chars: number; images: number }> = {};
+  const by: Record<string, { inputTokens: number; outputTokens: number; chars: number; images: number; seconds: number }> = {};
   for (const e of list) {
     const key = `${e.kind}${e.model ? ':' + e.model : ''}`;
-    by[key] ??= { inputTokens: 0, outputTokens: 0, chars: 0, images: 0 };
+    by[key] ??= { inputTokens: 0, outputTokens: 0, chars: 0, images: 0, seconds: 0 };
     by[key].inputTokens += e.inputTokens || 0;
     by[key].outputTokens += e.outputTokens || 0;
     by[key].chars += e.chars || 0;
     by[key].images += e.images || 0;
+    by[key].seconds += e.seconds || 0;
   }
   return by;
 }
@@ -75,6 +84,41 @@ export function printUsage(): void {
     if (v.inputTokens || v.outputTokens) parts.push(`입력 ${v.inputTokens.toLocaleString()} / 출력 ${v.outputTokens.toLocaleString()} 토큰`);
     if (v.chars) parts.push(`${v.chars.toLocaleString()}자`);
     if (v.images) parts.push(`이미지 ${v.images}장`);
+    if (v.seconds) parts.push(`영상 ${v.seconds}초`);
     console.log(`  ${k.padEnd(28)} ${parts.join(' · ')}`);
   }
+  printCostKrw(list);
+}
+
+/**
+ * 이번 실행에 실제로 얼마 나갔는지 원화로 찍는다.
+ * 단가는 웹앱(web/lib/pricing.js)과 같은 기본값을 쓰되, 환경변수로 덮어쓸 수 있게 한다 —
+ * 두 곳이 다른 금액을 보이면 "견적과 실제가 왜 다르냐"는 혼란이 생긴다.
+ */
+function printCostKrw(list: UsageEntry[]): void {
+  const P = {
+    claudeIn: Number(process.env.PRICE_CLAUDE_IN || 5),
+    claudeOut: Number(process.env.PRICE_CLAUDE_OUT || 25),
+    openaiIn: Number(process.env.PRICE_OPENAI_IN || 0.4),
+    openaiOut: Number(process.env.PRICE_OPENAI_OUT || 1.6),
+    image: Number(process.env.PRICE_IMAGE || 0.19),
+    geminiImage: Number(process.env.PRICE_GEMINI_IMAGE || 0.067),
+    tts1k: Number(process.env.PRICE_TTS_1K || 0.22),
+    veoSec: Number(process.env.PRICE_VEO_SEC || 0.05),
+    usdKrw: Number(process.env.USD_KRW || 1380),
+  };
+  let usd = 0;
+  for (const e of list) {
+    const inTok = e.inputTokens || 0;
+    const outTok = e.outputTokens || 0;
+    if (e.kind === 'claude') usd += (inTok * P.claudeIn + outTok * P.claudeOut) / 1e6;
+    else if (e.kind === 'openai-text') usd += (inTok * P.openaiIn + outTok * P.openaiOut) / 1e6;
+    else if (e.kind === 'openai-image') usd += (e.images || 0) * P.image;
+    else if (e.kind === 'gemini-image') usd += (e.images || 0) * P.geminiImage;
+    else if (e.kind === 'elevenlabs') usd += ((e.chars || 0) / 1000) * P.tts1k;
+    else if (e.kind === 'veo-video') usd += (e.seconds || 0) * P.veoSec;
+  }
+  const krw = Math.round(usd * P.usdKrw);
+  console.log(`  ${'─'.repeat(28)}`);
+  console.log(`  이번 편 비용(추정)          약 ${krw.toLocaleString()}원 ($${usd.toFixed(2)})`);
 }
