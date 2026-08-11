@@ -247,14 +247,6 @@
             </select>
           </div>
           <div>
-            <label for="minutes">길이(분)</label>
-            <select id="minutes">
-              <option>1</option>
-              <option selected>2</option>
-              <option>3</option>
-            </select>
-          </div>
-          <div>
             <label for="mode">모드</label>
             <select id="mode">
               <option value="auto">자동(주제 있으면 그걸로)</option>
@@ -292,6 +284,8 @@
             </select>
           </div>
         </div>
+
+        <p class="hint" style="text-align: left">영상 길이는 <b>1분</b>으로 고정돼 있어요.</p>
 
         <p class="hint" id="artHint">
           화풍은 <b>2D 벡터 일러스트</b> 스타일에서만 그림에 적용됩니다. 시그널·3D 계열은 화면을 코드로 그리기 때문에 화풍 설정이 영상에 반영되지 않습니다.
@@ -371,6 +365,10 @@
     </div>
 
     <script>
+      // 영상 길이는 1분 고정 — 선택지를 없애고 한 값으로만 간다.
+      // (바꾸려면 여기와 저장소 변수 TARGET_MINUTES 를 함께 고친다.)
+      const TARGET_MINUTES = 1;
+
       const $ = (id) => document.getElementById(id);
       const toast = (msg, kind = 'info') => {
         const t = $('toast');
@@ -394,7 +392,7 @@
       // (웹서치 리서치는 주제를 지정했거나 트렌드 모드일 때만 돌고, 그게 비용의 큰 몫이다.)
       let estTimer = null;
       async function refreshEstimate() {
-        const minutes = Number($('minutes').value) || 2;
+        const minutes = TARGET_MINUTES;
         const willResearch = $('topic').value.trim() !== '' || $('mode').value === 'trend';
         try {
           const r = await fetch(`/api/estimate?minutes=${minutes}&research=${willResearch}`);
@@ -417,7 +415,6 @@
         clearTimeout(estTimer);
         estTimer = setTimeout(refreshEstimate, 300); // 타이핑 중 연타 방지
       };
-      $('minutes').addEventListener('change', refreshEstimate);
       $('mode').addEventListener('change', refreshEstimate);
       $('topic').addEventListener('input', scheduleEstimate);
       refreshEstimate();
@@ -448,7 +445,7 @@
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              topic, mode: $('mode').value, minutes: Number($('minutes').value),
+              topic, mode: $('mode').value, minutes: TARGET_MINUTES,
               level: $('level').value,
               upload: $('upload').checked, password: $('pw').value,
               style: $('style').value,
