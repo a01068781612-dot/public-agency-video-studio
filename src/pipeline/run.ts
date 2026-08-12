@@ -206,31 +206,6 @@ async function stepVoice(): Promise<RenderManifest | null> {
   const visualTheme = pickVisualThemeMode(script.title);
   console.log(`  · 시각 테마: ${visualTheme}`);
 
-  // 홍보 타겟 기관 워터마크. 로고 그림은 있으면 쓰고 없으면 기관명만 띄운다 —
-  // 파일이 있어야만 워터마크가 나오게 해뒀더니, 기관을 골라도 화면 어디에도 그 기관이
-  // 표시되지 않았다(로고 파일을 한 장도 안 넣어둔 상태였다).
-  //
-  // 로고 파일 규칙: 2016년부터 대부분의 중앙행정기관은 통합 정부상징(태극)을 쓰므로
-  // agencies/gov.png 한 장이면 되고, 고유 상징을 유지하는 기관(경찰청·소방청·국방부 등)만
-  // agencies/<id>.png 를 따로 둔다. 둘 다 없으면 기관명 배지로 나간다.
-  const agency = resolveAgency(config.targetAgency);
-  let agencyLogoPath: string | undefined;
-  if (agency) {
-    const candidates = [`${agency.id}.png`, ...(agency.ownSymbol ? [] : ['gov.png'])];
-    for (const file of candidates) {
-      const abs = path.join(PUBLIC_DIR, 'agencies', file);
-      if (await fs.access(abs).then(() => true).catch(() => false)) {
-        agencyLogoPath = `agencies/${file}`;
-        break;
-      }
-    }
-    console.log(
-      agencyLogoPath
-        ? `  · 기관 워터마크: ${agency.label} (${agencyLogoPath})`
-        : `  · 기관 워터마크: ${agency.label} (로고 파일 없음 → 기관명만 표시)`,
-    );
-  }
-
   const manifest: RenderManifest = {
     title: script.title,
     topic: script.topic,
@@ -242,8 +217,6 @@ async function stepVoice(): Promise<RenderManifest | null> {
     createdAt: new Date().toISOString(),
     theme: visualTheme,
     bgm,
-    agencyLogoPath,
-    agencyLabel: agency?.label,
   };
   await writeJson(MANIFEST_PATH, manifest);
   const mins = (startFrame / FPS / 60).toFixed(1);
@@ -401,7 +374,6 @@ async function stepRender(): Promise<void> {
     // 흰 배경으로 튀지 않고 영상 전체가 한 톤으로 보이게 한다.
     const imgMap = await generateIllustrations(needsAiImage, manifest.theme === 'dark', {
       topic: manifest.title || manifest.topic,
-      agencyLabel: manifest.agencyLabel,
     });
     manifest.scenes = manifest.scenes.map((s) => ({ ...s, imagePath: imgMap[s.id] }));
     // 실사 클립 — 방금 만든 그 이미지를 시작 프레임으로 움직이게 한다(image-to-video).
