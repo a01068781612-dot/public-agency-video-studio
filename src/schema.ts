@@ -128,12 +128,24 @@ export type Script = z.infer<typeof ScriptSchema>;
  * (Remotion 컴포지션 props 로 쓰이므로 interface 가 아닌 type 으로 선언 —
  *  type 이어야 Record<string, unknown> 에 할당 가능.)
  */
+/** 컷 하나 — 씬 안에서 화면이 한 번 바뀌는 단위. 계산은 src/lib/timeline.ts. */
+export type SceneCut = {
+  startFrame: number; // 씬 시작 기준 상대 프레임
+  durationInFrames: number;
+  motion: 'zoom-in' | 'zoom-out' | 'pan-left' | 'pan-right' | 'slide-up' | 'pop';
+  source: 'image' | 'clip';
+  clipStartSec?: number; // source='clip' 일 때 클립의 어느 지점부터 보여줄지
+};
+
 export type SceneWithAudio = Scene & {
   audioPath: string; // staticFile 상대경로 (예: audio/s1.mp3)
   imagePath?: string; // 일러스트 staticFile 상대경로 (예: img/s1.png) — illustrated 엔진용
   // 실사 클립 staticFile 상대경로 (예: clip/s1.mp4) — liveaction 씬에서만.
   // 생성에 실패하면 없을 수 있고, 그때는 imagePath 로 폴백해 정지 이미지로 렌더한다.
   clipPath?: string;
+  // 이 씬을 몇 개의 컷으로 나눠 보여줄지 (src/lib/timeline.ts 가 계산).
+  // 씬 하나가 화면 하나로만 렌더되면 숏폼이 지루해져서, 같은 소재라도 컷마다 연출을 바꾼다.
+  cuts?: SceneCut[];
   durationSec: number; // 측정된 오디오 길이
   startFrame: number;
   durationInFrames: number;

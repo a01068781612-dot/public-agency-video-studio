@@ -31,6 +31,7 @@ import { generateBgm } from '../lib/bgm.js';
 import { renderVideo } from '../lib/render.js';
 import { generateIllustrations } from '../lib/illustrate.js';
 import { generateVideoClip, normalizeClipSeconds } from '../lib/videogen.js';
+import { planTimeline } from '../lib/timeline.js';
 import { generateThumbnail } from '../lib/thumbnail.js';
 import { printUsage } from '../lib/usage.js';
 import { uploadVideo, setThumbnail, setPrivacy } from '../lib/youtube.js';
@@ -377,7 +378,17 @@ async function stepRender(): Promise<void> {
     if (Object.keys(clipMap).length > 0) {
       manifest.scenes = manifest.scenes.map((s) => ({ ...s, clipPath: clipMap[s.id] }));
     }
-    await writeJson(MANIFEST_PATH, manifest); // imagePath/clipPath 반영 저장(재실행 대비)
+
+    // 컷 타임라인 — 씬 하나를 여러 컷으로 쪼개 화면이 계속 바뀌게 한다.
+    // 소재(이미지·클립)가 다 정해진 뒤에 계산해야 클립 구간을 컷에 물릴 수 있다.
+    const timeline = planTimeline(manifest.scenes, manifest.fps);
+    manifest.scenes = manifest.scenes.map((s, i) => ({ ...s, cuts: timeline.perScene[i] }));
+    console.log(
+      `  · 컷 구성: ${timeline.totalCuts}컷 (평균 ${timeline.avgCutSec.toFixed(1)}초, 최장 ${timeline.maxCutSec.toFixed(1)}초` +
+        `${timeline.clipCuts ? `, 실사 ${timeline.clipCuts}컷` : ''})`,
+    );
+
+    await writeJson(MANIFEST_PATH, manifest); // imagePath/clipPath/cuts 반영 저장(재실행 대비)
     const made = Object.keys(imgMap).length;
     console.log(`  · 일러스트 ${made}/${needsAiImage.length}장 완료 → Remotion 합성`);
     // 그림이 필요한 씬이 있는데 한 장도 못 만들었다 = 영상이 통째로 글자 화면만 남는다는 뜻.

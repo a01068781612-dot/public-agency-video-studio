@@ -149,16 +149,16 @@ const SceneShot: React.FC<{ scene: RenderManifest['scenes'][number]; index: numb
     );
   }
 
-  // 실사 클립이 있으면 그걸 튼다. 클립은 그 자체가 움직이므로 켄번즈(줌·패닝)를 걸지 않는다 —
-  // 두 움직임이 겹치면 화면이 출렁여 보인다. 클립이 씬보다 짧으면 마지막 프레임에서 멈춘다.
-  if (scene.clipPath) {
+  // 컷 타임라인이 있으면 씬을 여러 컷으로 쪼개 보여준다(숏폼 템포).
+  // 컷마다 연출이 달라 같은 그림이라도 화면이 계속 바뀌는 느낌이 난다.
+  if (scene.cuts?.length && (scene.imagePath || scene.clipPath)) {
     return (
       <AbsoluteFill style={{ opacity: fade, backgroundColor: '#000' }}>
-        <OffthreadVideo
-          src={staticFile(scene.clipPath)}
-          muted // 나레이션과 겹치지 않게 (Veo 음성은 애초에 끄고 생성한다)
-          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-        />
+        {scene.cuts.map((cut, ci) => (
+          <Sequence key={ci} from={cut.startFrame} durationInFrames={cut.durationInFrames} name={`cut${ci + 1}`}>
+            <CutShot cut={cut} scene={scene} theme={theme} />
+          </Sequence>
+        ))}
         <WordCaption narration={scene.narration} durationInFrames={dur} />
       </AbsoluteFill>
     );
@@ -179,6 +179,80 @@ const SceneShot: React.FC<{ scene: RenderManifest['scenes'][number]; index: numb
         </AbsoluteFill>
       )}
       <WordCaption narration={scene.narration} durationInFrames={dur} />
+    </AbsoluteFill>
+  );
+};
+
+/**
+ * 컷 하나 — 같은 소재(이미지/클립)라도 연출을 바꿔 다른 화면처럼 보이게 한다.
+ * 실사 클립 컷은 영상 자체가 움직이므로 카메라 연출을 얹지 않는다(겹치면 출렁인다).
+ */
+const CutShot: React.FC<{
+  cut: NonNullable<RenderManifest['scenes'][number]['cuts']>[number];
+  scene: RenderManifest['scenes'][number];
+  theme: typeof lightTheme;
+}> = ({ cut, scene, theme }) => {
+  const frame = useCurrentFrame();
+  const { fps } = useVideoConfig();
+  const d = cut.durationInFrames;
+  const p = interpolate(frame, [0, d], [0, 1], { extrapolateRight: 'clamp' });
+  // 컷 시작 순간의 등장 연출(0→1). 짧게 끝내야 다음 컷으로 리듬이 이어진다.
+  const enter = interpolate(frame, [0, Math.min(10, d)], [0, 1], { extrapolateRight: 'clamp' });
+
+  if (cut.source === 'clip' && scene.clipPath) {
+    return (
+      <AbsoluteFill style={{ backgroundColor: '#000' }}>
+        <OffthreadVideo
+          src={staticFile(scene.clipPath)}
+          startFrom={Math.round((cut.clipStartSec ?? 0) * fps)}
+          muted // 나레이션과 겹치지 않게
+          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+        />
+      </AbsoluteFill>
+    );
+  }
+
+  if (!scene.imagePath) {
+    return (
+      <AbsoluteFill style={{ justifyContent: 'center', alignItems: 'center', backgroundColor: theme.paper }}>
+        <h1 style={{ fontFamily: PRETENDARD, fontWeight: 800, fontSize: 96, color: theme.ink, textAlign: 'center', maxWidth: 1500 }}>
+          {scene.heading}
+        </h1>
+      </AbsoluteFill>
+    );
+  }
+
+  // 연출 프리셋 — transform 과 opacity 만으로 만든다(GPU 합성이라 렌더가 가볍다).
+  let transform = '';
+  let opacity = 1;
+  switch (cut.motion) {
+    case 'zoom-in':
+      transform = `scale(${1.04 + p * 0.12})`;
+      break;
+    case 'zoom-out':
+      transform = `scale(${1.16 - p * 0.12})`;
+      break;
+    case 'pan-left':
+      transform = `scale(1.14) translateX(${(0.5 - p) * 70}px)`;
+      break;
+    case 'pan-right':
+      transform = `scale(1.14) translateX(${(p - 0.5) * 70}px)`;
+      break;
+    case 'slide-up':
+      transform = `scale(1.08) translateY(${(1 - enter) * 90}px)`;
+      opacity = enter;
+      break;
+    case 'pop':
+      transform = `scale(${1.02 + enter * 0.06 + p * 0.04})`;
+      opacity = enter;
+      break;
+  }
+
+  return (
+    <AbsoluteFill style={{ opacity, backgroundColor: theme.paper }}>
+      <AbsoluteFill style={{ transform, transformOrigin: 'center center' }}>
+        <Img src={staticFile(scene.imagePath)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+      </AbsoluteFill>
     </AbsoluteFill>
   );
 };
