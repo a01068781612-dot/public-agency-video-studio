@@ -165,7 +165,7 @@ export async function generateScript(params: {
     '- ★가장 중요★ visual="illustration" 은 실제 장면을 그린 그림 한 장이 화면을 채우는 씬이고, 나머지 다섯 종류는 전부 글자·도형만 나오는 화면이다. 그래서 illustration 이 적으면 영상 전체가 "글자만 나오는 영상"이 되어 홍보물로 쓸 수 없다. 중간 씬의 절반 이상(최소 50%)을 illustration 으로 채워라. 사건 현장, 사람들이 일하는 모습, 장비·시설·서류 같은 실물이 등장하는 대목은 무조건 illustration 으로 간다.',
     ...(useVeo
       ? [
-          `- visual="liveaction" 은 그 그림이 실제로 움직이는 짧은 실사 영상이 되는 씬이다. 정지 그림보다 훨씬 강하지만 비싸서 이 영상에서 최대 ${veoClipCount}개만 쓸 수 있다. 가장 효과가 큰 자리에만 배치해라: 도입부 후킹, 화제가 크게 바뀌는 전환점, 마무리 직전. illustration 씬 중 이 자리에 해당하는 것들을 liveaction 으로 바꾸면 된다(둘은 형제 관계라 illustration 필드를 똑같이 채운다).`,
+          `- ★visual="liveaction" 씬을 반드시 ${veoClipCount}개 넣어라(선택이 아니라 필수다)★ 그 그림이 실제로 움직이는 짧은 실사 영상이 되는 씬으로, 정지 그림만 있는 영상은 홍보물로 쓸 수 없다. ${veoClipCount}개보다 많이 넣어도, 적게 넣어도 안 된다. 배치는 효과가 큰 자리에: 도입부 후킹, 화제가 크게 바뀌는 전환점, 마무리 직전. illustration 씬 중 이 자리에 해당하는 것들을 liveaction 으로 바꾸면 된다(둘은 형제 관계라 illustration 필드를 똑같이 채운다).`,
           '- liveaction 씬은 motion 필드에 "무엇이 어떻게 움직이는지"를 영어로 적는다. 장면 설명(그건 illustration 필드가 담당)이 아니라 움직임만 적는다: 카메라의 움직임(slow push in, pan left, static), 피사체의 움직임(smoke rising, people walking past, hands typing). 예: "slow push in as smoke keeps rising and firefighters move across the frame".',
           '- liveaction 씬은 clipSeconds 를 내용에 맞춰 4·6·8 중에서 고른다(그 외 값은 불가). 움직임이 단순하고 한 동작이면 4, 동작이 이어지거나 전개가 있으면 6, 넓은 현장을 훑거나 여러 요소가 차례로 보여야 하면 8. 대부분은 4로 충분하다 — 길수록 비싸다.',
         ]
@@ -319,7 +319,51 @@ export async function generateScript(params: {
     return { ...s, scenes: kept };
   };
 
+  /**
+   * 실사 클립(liveaction) 개수를 맞춘다.
+   *
+   * "최대 N개까지 쓸 수 있다"고만 안내했더니 모델이 0개를 골라, 실사 클립이 필수 구성인데도
+   * 정지 그림만 있는 영상이 나왔다. 프롬프트를 필수로 바꿨지만 그것만 믿지 않는다 —
+   * 모자라면 illustration 씬을 승격시켜 코드로 채운다(도입·전환·마무리 직전에 고르게 배치).
+   */
+  const ensureLiveAction = (s: Script, want: number): Script => {
+    if (want <= 0) return s;
+    const scenes = s.scenes.map((sc) => ({ ...sc }));
+    const already = scenes.filter((sc) => sc.visual === 'liveaction');
+    if (already.length >= want) return s;
+
+    // 승격 후보 = 그림 묘사가 있는 illustration 씬(그 묘사가 Veo 의 시작 프레임이 된다).
+    const candidates = scenes
+      .map((sc, i) => ({ sc, i }))
+      .filter(({ sc }) => sc.visual === 'illustration' && (sc.illustration ?? '').trim() !== '');
+    if (candidates.length === 0) {
+      console.warn(`[대본] 실사 클립 ${want}개가 필요한데 승격할 illustration 씬이 없습니다 — 정지 그림만으로 진행합니다.`);
+      return s;
+    }
+
+    const need = Math.min(want - already.length, candidates.length);
+    // 후보를 타임라인에 고르게 흩어 고른다(앞쪽에 몰리면 후반이 밋밋해진다).
+    const picked = new Set<number>();
+    for (let k = 0; k < need; k++) {
+      const at = Math.round((k * (candidates.length - 1)) / Math.max(1, need - 1));
+      let j = at;
+      while (picked.has(j) && j < candidates.length) j++;
+      while (picked.has(j) && j >= 0) j--;
+      if (j >= 0 && j < candidates.length) picked.add(j);
+    }
+    for (const j of picked) {
+      const { sc } = candidates[j];
+      sc.visual = 'liveaction';
+      sc.clipSeconds = sc.clipSeconds ?? 4;
+      // 모델이 안 준 경우의 기본 움직임 — 시작 프레임을 살짝 밀고 들어가며 자연스러운 미동만.
+      sc.motion = sc.motion ?? 'slow push in, subtle natural movement, people and background moving gently';
+    }
+    console.log(`[대본] 실사 클립 ${already.length}개 → ${already.length + picked.size}개로 보정(목표 ${want}개)`);
+    return { ...s, scenes };
+  };
+
   let script = dropEmptyScenes(await runOnceResilient(''));
+  if (useVeo) script = ensureLiveAction(script, veoClipCount);
   let chars = totalChars(script);
   console.log(`[대본] 나레이션 총 ${chars}자 / 목표 ${targetChars}자 (씬 ${script.scenes.length}개)`);
 
