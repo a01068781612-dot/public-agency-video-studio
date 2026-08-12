@@ -558,6 +558,7 @@
       let tickTimer = null;
       let clockSkew = 0; // 서버-클라 시각 보정(ms)
       let shownPct = 0; // 부드럽게 올라가는 표시용 %
+      let previewMode = false; // 지금 돌고 있는 실행이 대본 미리보기인가(진행 표시를 1단계로 바꾼다)
       const COOLDOWN_MS = 15000;
 
       // 단계 정의: 전체 진행률 구간 + 예상 소요(초). 렌더가 길어 구간 내 보간으로 계속 차오르게.
@@ -603,6 +604,7 @@
           if (!res.ok) throw new Error((data.error || '요청 실패') + (data.detail ? ' — ' + data.detail : ''));
           triggeredAt = Date.now();
           shownPct = 0;
+          previewMode = isPreview;
           setLive('queued', {
             stage: isPreview ? '대본을 쓰러 가는 중' : '실행을 준비하고 있어요',
             sub: '잠시 후 GitHub Actions가 시작됩니다',
@@ -733,25 +735,33 @@
           const waitingForMine = triggeredAt && (!newest || newestTs < triggeredAt - 20000);
 
           window.__state = { runs, steps: data.steps || [], jobStartedAt: data.jobStartedAt, waitingForMine };
-          renderLive();
+          // 그리기에서 터져도 폴링은 계속돼야 한다 — 예전엔 여기서 예외가 나면 다음 폴링 예약까지
+          // 건너뛰어 진행바가 그 자리에 영영 멈췄다(무슨 일이 벌어지는지 알 수 없게 된다).
+          try { renderLive(); } catch (e) { console.error('renderLive', e); }
 
           const active = runs.some((r) => r.status !== 'completed');
           if (active || waitingForMine) startPolling(5000);
           else { pollTimer = null; stopTick(); }
         } catch (e) {
           toast('⚠️ ' + e.message, 'err');
+          startPolling(8000); // 일시적 조회 실패로 갱신이 끊기지 않게 계속 시도
         }
       }
 
-      // 활성 단계 계산 + 전체 진행률(목표) 산출
+      // 활성 단계 계산 + 전체 진행률(목표) 산출.
+      // 미리보기 실행은 대본 한 단계만 도므로, 그 단계 하나를 0~100% 로 늘려 쓴다
+      // (4단계 기준으로 그리면 15% 에서 멈춘 것처럼 보여 "왜 안 되냐"가 된다).
       function computeProgress(steps) {
         const find = (kw) => steps.find((s) => s.name && s.name.includes(kw));
+        const stages = previewMode
+          ? [{ k: 'script', kw: '대본 생성', from: 3, to: 97, eta: 200, label: '리서치하고 대본 쓰는 중' }]
+          : STAGES;
         let target = 1, activeIdx = -1, failedIdx = -1, stageStart = null;
-        for (let i = 0; i < STAGES.length; i++) {
-          const st = find(STAGES[i].kw);
+        for (let i = 0; i < stages.length; i++) {
+          const st = find(stages[i].kw);
           if (!st) continue;
           if (st.status === 'completed') {
-            if (st.conclusion === 'success') target = Math.max(target, STAGES[i].to);
+            if (st.conclusion === 'success') target = Math.max(target, stages[i].to);
             else if (st.conclusion === 'failure' || st.conclusion === 'timed_out') { failedIdx = i; }
           } else if (st.status === 'in_progress') {
             activeIdx = i;
@@ -759,7 +769,7 @@
           }
         }
         if (activeIdx >= 0) {
-          const S = STAGES[activeIdx];
+          const S = stages[activeIdx];
           let frac = 0;
           if (stageStart) {
             const elapsed = (Date.now() - clockSkew - stageStart) / 1000;
@@ -767,7 +777,7 @@
           }
           target = Math.max(target, S.from + (S.to - S.from) * frac);
         }
-        return { target, activeIdx, failedIdx };
+        return { target, activeIdx, failedIdx, label: activeIdx >= 0 ? stages[activeIdx].label : null, count: stages.length };
       }
 
       function renderLive() {
@@ -784,30 +794,45 @@
         if (!newest) { setLive('idle', {}); return; }
 
         const active = newest.status !== 'completed';
-        const { target, activeIdx, failedIdx } = computeProgress(s.steps);
+        const { target, activeIdx, failedIdx, label, count } = computeProgress(s.steps);
 
-        // 단계 아이콘 상태
-        document.querySelectorAll('.stage').forEach((el, i) => {
+        // 단계 아이콘 상태. 미리보기는 대본 한 단계뿐이라 나머지는 흐리게 둔다.
+        document.querySelectorAll('.stage').forEach((el) => {
           el.classList.remove('active', 'done', 'fail');
+          el.style.opacity = previewMode && el.getAttribute('data-k') !== 'script' ? '0.25' : '';
           const S = STAGES.find((x) => x.k === el.getAttribute('data-k'));
-          const idx = STAGES.indexOf(S);
+          if (!S) return; // STAGES 에 없는 아이콘이 섞여도 여기서 터지지 않게
+          const idx = previewMode ? (S.k === 'script' ? 0 : 99) : STAGES.indexOf(S);
           if (failedIdx === idx) el.classList.add('fail');
           else if (activeIdx === idx) el.classList.add('active');
-          else if (activeIdx > idx || (!active && newest.conclusion === 'success')) el.classList.add('done');
-          else if (target >= S.to) el.classList.add('done');
+          else if (activeIdx > idx || (!active && newest.conclusion === 'success' && !previewMode)) el.classList.add('done');
+          else if (!previewMode && target >= S.to) el.classList.add('done');
         });
 
         if (active) {
-          const S = activeIdx >= 0 ? STAGES[activeIdx] : null;
+          // 단계를 못 찾았는데 실행은 돌고 있다 = 설치·체크아웃 같은 준비 단계 중이다.
+          // 예전엔 여기서 "곧 시작돼요 / 1%" 로 굳어 멈춘 것처럼 보였다.
+          const prep = activeIdx < 0;
           setLive('active', {
-            stage: S ? S.label : '제작 중',
-            sub: S ? `${activeIdx + 1} / 4 단계 진행 중` : '곧 시작돼요',
+            stage: label || (prep ? '실행 환경 준비 중' : '제작 중'),
+            sub: prep
+              ? '체크아웃·의존성 설치 단계예요 (보통 20초~5분)'
+              : previewMode
+                ? '리서치 → 대본 (미리보기는 여기까지만)'
+                : `${activeIdx + 1} / ${count} 단계 진행 중`,
             target,
           });
           startTick();
         } else {
           stopTick();
-          if (newest.conclusion === 'success') {
+          if (newest.conclusion === 'success' && previewMode) {
+            // 미리보기는 "영상 완성"이 아니다 — 결과는 위쪽 대본 패널에 있다고 알려준다.
+            setLive('active', { stage: '대본이 나왔어요', sub: '위쪽 [대본 미리보기] 칸에서 확인하세요', target: 100 });
+            $('bar').style.width = '100%';
+            $('pct').textContent = '100%';
+            shownPct = 100;
+            previewMode = false;
+          } else if (newest.conclusion === 'success') {
             setLive('done', { target: 100, title: newest.title });
             $('bar').style.width = '100%';
             $('pct').textContent = '100%';
