@@ -53,13 +53,19 @@ function saveToken(token) {
     console.log('⚠️ .env 저장 실패:', e.message);
   }
 
-  const r = spawnSync('gh', ['secret', 'set', 'YOUTUBE_REFRESH_TOKEN'], {
-    input: token,
-    encoding: 'utf8',
-    shell: true,
-  });
-  if (r.status === 0) console.log('✅ GitHub Secrets 저장 완료 (YOUTUBE_REFRESH_TOKEN)');
-  else console.log('⚠️ GitHub Secrets 저장 실패 — 수동으로 넣어주세요:', (r.stderr || '').trim());
+  // 토큰은 그것을 발급한 클라이언트와 짝이다. 토큰만 갱신하고 client id/secret 이
+  // 예전 값으로 남아 있으면 업로드가 invalid_client("The OAuth client was not found")로
+  // 죽는다 — 실제로 렌더까지 끝낸 실행이 마지막 단계에서 이걸로 버려졌다. 셋을 함께 넣는다.
+  const secrets = {
+    YOUTUBE_REFRESH_TOKEN: token,
+    YOUTUBE_CLIENT_ID: clientId,
+    YOUTUBE_CLIENT_SECRET: clientSecret,
+  };
+  for (const [name, value] of Object.entries(secrets)) {
+    const r = spawnSync('gh', ['secret', 'set', name], { input: value, encoding: 'utf8', shell: true });
+    if (r.status === 0) console.log(`✅ GitHub Secrets 저장 완료 (${name})`);
+    else console.log(`⚠️ GitHub Secrets 저장 실패 (${name}) — 수동으로 넣어주세요:`, (r.stderr || '').trim());
+  }
 }
 
 const authUrl = oauth2.generateAuthUrl({
