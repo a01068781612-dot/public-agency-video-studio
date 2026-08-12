@@ -37,13 +37,18 @@ export const AiIllustrated: React.FC<RenderManifest> = (manifest) => {
         </Sequence>
       ))}
       {manifest.bgm && <BackgroundMusic src={manifest.bgm} total={manifest.totalDurationInFrames} />}
-      {manifest.agencyLogoPath && <AgencyWatermark src={manifest.agencyLogoPath} label={manifest.agencyLabel} />}
+      {/* 로고 파일이 없어도 기관명은 띄운다 — 예전엔 파일이 있어야만 워터마크가 나와서,
+          기관을 골라도 화면에 그 기관이 어디에도 표시되지 않았다. */}
+      {manifest.agencyLabel && <AgencyWatermark src={manifest.agencyLogoPath} label={manifest.agencyLabel} />}
     </AbsoluteFill>
   );
 };
 
-/** 홍보 타겟 기관 로고/마스코트 워터마크 — 우측 상단에 은은하게, 영상 전체에 고정 표시. */
-const AgencyWatermark: React.FC<{ src: string; label?: string }> = ({ src, label }) => (
+/**
+ * 홍보 타겟 기관 워터마크 — 우측 상단에 은은하게, 영상 전체에 고정 표시.
+ * 로고 파일(public/agencies/*.png)은 선택이다. 없으면 기관명만 띄운다.
+ */
+const AgencyWatermark: React.FC<{ src?: string; label?: string }> = ({ src, label }) => (
   <div
     style={{
       position: 'absolute',
@@ -58,7 +63,7 @@ const AgencyWatermark: React.FC<{ src: string; label?: string }> = ({ src, label
       opacity: 0.92,
     }}
   >
-    <Img src={staticFile(src)} style={{ height: 40, width: 40, objectFit: 'contain', borderRadius: '50%' }} />
+    {src && <Img src={staticFile(src)} style={{ height: 40, width: 40, objectFit: 'contain', borderRadius: '50%' }} />}
     {label && (
       <span style={{ fontFamily: PRETENDARD, fontSize: 22, fontWeight: 700, color: '#fff' }}>{label}</span>
     )}

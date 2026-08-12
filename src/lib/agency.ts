@@ -11,6 +11,15 @@ export type Agency = {
   label: string;
   /** 소관 분야 한 줄 — 주제 선정과 사례 선택의 기준이 된다. */
   domain: string;
+  /**
+   * 통합 정부상징(태극)을 쓰지 않고 고유 상징을 유지하는 기관인가.
+   *
+   * 2016년 3월 정부상징체계 통합으로 대부분의 중앙행정기관은 부처별 CI 를 없애고 같은
+   * 태극 상징 + 기관명을 쓴다. 그래서 로고 파일도 agencies/gov.png 한 장이면 대부분 커버된다.
+   * 다만 국방부·경찰청·해양경찰청·소방청·검찰청 등은 통합에서 제외돼 고유 상징을 유지하므로,
+   * 이 기관들만 agencies/<id>.png 를 따로 둬야 한다.
+   */
+  ownSymbol?: true;
 };
 
 export const AGENCIES: Agency[] = [
@@ -21,7 +30,7 @@ export const AGENCIES: Agency[] = [
   { id: 'mofa', label: '외교부', domain: '외교·통상·재외국민 보호' },
   { id: 'unikorea', label: '통일부', domain: '남북관계·통일 정책' },
   { id: 'moj', label: '법무부', domain: '법질서·검찰행정·교정·출입국' },
-  { id: 'mnd', label: '국방부', domain: '국방·군사' },
+  { id: 'mnd', label: '국방부', domain: '국방·군사', ownSymbol: true },
   { id: 'mois', label: '행정안전부', domain: '지방행정·재난안전·정부혁신' },
   { id: 'mpva', label: '국가보훈부', domain: '국가유공자 예우·보훈' },
   { id: 'mcst', label: '문화체육관광부', domain: '문화·예술·체육·관광·미디어' },
@@ -43,18 +52,18 @@ export const AGENCIES: Agency[] = [
   { id: 'customs', label: '관세청', domain: '관세·수출입 통관' },
   { id: 'pps', label: '조달청', domain: '정부 물자·공공조달' },
   { id: 'kostat', label: '통계청', domain: '국가통계 작성·관리' },
-  { id: 'spo', label: '검찰청', domain: '형사사건 수사·기소' },
+  { id: 'spo', label: '검찰청', domain: '형사사건 수사·기소', ownSymbol: true },
   { id: 'mma', label: '병무청', domain: '병역자원 관리' },
   { id: 'dapa', label: '방위사업청', domain: '방위력 개선사업·방산수출' },
-  { id: 'police', label: '경찰청', domain: '치안·공공안전' },
-  { id: 'nfa', label: '소방청', domain: '화재예방·구조구급' },
+  { id: 'police', label: '경찰청', domain: '치안·공공안전', ownSymbol: true },
+  { id: 'nfa', label: '소방청', domain: '화재예방·구조구급', ownSymbol: true },
   { id: 'khs', label: '국가유산청', domain: '문화유산 보존·관리' },
   { id: 'rda', label: '농촌진흥청', domain: '농업기술 연구개발·보급' },
   { id: 'kfs', label: '산림청', domain: '산림자원 관리·산불방지' },
   { id: 'kipo', label: '특허청', domain: '지식재산권 심사·보호' },
   { id: 'kdca', label: '질병관리청', domain: '감염병 대응·질병관리' },
   { id: 'kma', label: '기상청', domain: '기상예보·기후감시' },
-  { id: 'kcg', label: '해양경찰청', domain: '해양치안·해양안전' },
+  { id: 'kcg', label: '해양경찰청', domain: '해양치안·해양안전', ownSymbol: true },
   { id: 'saemangeum', label: '새만금개발청', domain: '새만금 지역 개발' },
   { id: 'nacc', label: '행정중심복합도시건설청', domain: '세종시 건설·관리' },
   { id: 'kasa', label: '우주항공청', domain: '우주항공산업 육성' },

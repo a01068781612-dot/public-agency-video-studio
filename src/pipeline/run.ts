@@ -205,18 +205,29 @@ async function stepVoice(): Promise<RenderManifest | null> {
   const visualTheme = pickVisualThemeMode(script.title);
   console.log(`  · 시각 테마: ${visualTheme}`);
 
-  // 홍보 타겟 기관 로고/마스코트 워터마크 — public/agencies/<id>.png 가 실제로 있을 때만 켠다.
-  // (파일이 없으면 조용히 워터마크 없이 진행 — 기관 목록 39곳 전부에 로고를 미리 요구하지 않는다.)
+  // 홍보 타겟 기관 워터마크. 로고 그림은 있으면 쓰고 없으면 기관명만 띄운다 —
+  // 파일이 있어야만 워터마크가 나오게 해뒀더니, 기관을 골라도 화면 어디에도 그 기관이
+  // 표시되지 않았다(로고 파일을 한 장도 안 넣어둔 상태였다).
+  //
+  // 로고 파일 규칙: 2016년부터 대부분의 중앙행정기관은 통합 정부상징(태극)을 쓰므로
+  // agencies/gov.png 한 장이면 되고, 고유 상징을 유지하는 기관(경찰청·소방청·국방부 등)만
+  // agencies/<id>.png 를 따로 둔다. 둘 다 없으면 기관명 배지로 나간다.
   const agency = resolveAgency(config.targetAgency);
   let agencyLogoPath: string | undefined;
   if (agency) {
-    const logoFile = path.join(PUBLIC_DIR, 'agencies', `${agency.id}.png`);
-    if (await fs.access(logoFile).then(() => true).catch(() => false)) {
-      agencyLogoPath = `agencies/${agency.id}.png`;
-      console.log(`  · 기관 워터마크: ${agency.label} (agencies/${agency.id}.png)`);
-    } else {
-      console.log(`  · 기관 워터마크 없음(agencies/${agency.id}.png 파일 없음) — 워터마크 생략`);
+    const candidates = [`${agency.id}.png`, ...(agency.ownSymbol ? [] : ['gov.png'])];
+    for (const file of candidates) {
+      const abs = path.join(PUBLIC_DIR, 'agencies', file);
+      if (await fs.access(abs).then(() => true).catch(() => false)) {
+        agencyLogoPath = `agencies/${file}`;
+        break;
+      }
     }
+    console.log(
+      agencyLogoPath
+        ? `  · 기관 워터마크: ${agency.label} (${agencyLogoPath})`
+        : `  · 기관 워터마크: ${agency.label} (로고 파일 없음 → 기관명만 표시)`,
+    );
   }
 
   const manifest: RenderManifest = {

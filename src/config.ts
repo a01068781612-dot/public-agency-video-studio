@@ -92,8 +92,11 @@ export const config = {
   ttsProvider: optional('TTS_PROVIDER', 'gemini').toLowerCase(),
   // preview 모델이라 ID 가 바뀔 수 있어 환경변수로 뺀다(Veo 와 같은 이유).
   geminiTtsModel: optional('GEMINI_TTS_MODEL', 'gemini-2.5-flash-preview-tts'),
-  // 30종 중 하나. Kore=차분하고 단단한 여성 톤 — 보도·홍보 나레이션에 무난하다.
-  geminiTtsVoice: optional('GEMINI_TTS_VOICE', 'Kore'),
+  // 30종 중 하나. 4종(Kore/Aoede/Leda/Sulafat)을 실제로 들어보고 Sulafat 으로 정했다.
+  geminiTtsVoice: optional('GEMINI_TTS_VOICE', 'Sulafat'),
+  // 이 음성의 실측 발화 속도(초당 글자). 60초 상한 환산에 쓴다 —
+  // ElevenLabs 는 5.4자였는데 Gemini 는 더 빨라서, 같은 기준을 쓰면 영상이 15% 짧아진다.
+  ttsCharsPerSec: Number(optional('TTS_CHARS_PER_SEC', '6.6')),
 
   // ElevenLabs
   elevenLabsApiKey: () => required('ELEVENLABS_API_KEY'),
@@ -157,7 +160,7 @@ export const config = {
   useVeo: optional('USE_VEO', 'true').toLowerCase() === 'true',
   veoModel: optional('VEO_MODEL', 'veo-3.1-lite-generate-preview'),
   // 실행당 클립 개수 하드 상한. 초과하면 생성하지 않는다(요청 스펙: 최대 4회).
-  veoClipCount: Number(optional('VEO_CLIP_COUNT', '4')),
+  veoClipCount: Number(optional('VEO_CLIP_COUNT', '6')),
   // 클립 길이는 대본이 내용에 맞춰 4·6·8초 중에 고른다. 이 값은 대본이 지정하지
   // 않았을 때의 기본값 겸, 총 길이 상한 계산의 기준이다.
   veoClipSeconds: Number(optional('VEO_CLIP_SECONDS', '4')),

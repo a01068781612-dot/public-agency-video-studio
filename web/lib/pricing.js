@@ -15,8 +15,9 @@ export const PRICE = {
   image: Number(process.env.PRICE_IMAGE || 0.19),
   // Gemini 이미지(Nano Banana 2, 1K) — 장당 달러. 공개 정가 기준 대략치.
   geminiImage: Number(process.env.PRICE_GEMINI_IMAGE || 0.067),
-  // TTS — 1000자당 달러
-  tts1k: Number(process.env.PRICE_TTS_1K || 0.22),
+  // TTS — 1000자당 달러. Gemini TTS 실측 기준(59자 → 출력 222토큰, 출력 $10/1M).
+  // ElevenLabs 로 되돌리면 0.22 로 바꿔야 한다.
+  tts1k: Number(process.env.PRICE_TTS_1K || 0.037),
   // Veo 3.1 Lite 실사 영상 — 초당 달러(720p 기준). 1080p 는 약 $0.08.
   veoSec: Number(process.env.PRICE_VEO_SEC || 0.05),
   usdKrw: Number(process.env.USD_KRW || 1380),
@@ -27,7 +28,7 @@ export const PRICE = {
 export const VEO = {
   // 실사 클립은 선택이 아니라 필수 구성이므로 기본값이 켜짐이다(견적에 항상 포함된다).
   enabled: String(process.env.USE_VEO || 'true').toLowerCase() === 'true',
-  clipCount: Number(process.env.VEO_CLIP_COUNT || 4),
+  clipCount: Number(process.env.VEO_CLIP_COUNT || 6),
   clipSeconds: Number(process.env.VEO_CLIP_SECONDS || 4),
 };
 

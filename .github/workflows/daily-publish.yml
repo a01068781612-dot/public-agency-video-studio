@@ -80,6 +80,12 @@ jobs:
     env:
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
       CLAUDE_MODEL: ${{ vars.CLAUDE_MODEL || 'claude-haiku-4-5-20251001' }}
+      # ── 나레이션 provider ── gemini(기본, 한국어 원어민) | elevenlabs
+      # ElevenLabs 무료 요금제는 라이브러리 음성을 API 로 못 써서 한국어 목소리를 낼 수 없다.
+      TTS_PROVIDER: ${{ vars.TTS_PROVIDER || 'gemini' }}
+      GEMINI_TTS_MODEL: ${{ vars.GEMINI_TTS_MODEL || 'gemini-2.5-flash-preview-tts' }}
+      GEMINI_TTS_VOICE: ${{ vars.GEMINI_TTS_VOICE || 'Sulafat' }}
+      TTS_CHARS_PER_SEC: ${{ vars.TTS_CHARS_PER_SEC || '6.6' }}
       ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
       # 음성ID는 Variables/Secrets 어느 쪽에 넣어도 잡히게 둘 다 본다.
       # (키는 secrets 에, 음성ID는 vars 에서만 읽고 있어서 시크릿에 넣은 값이 무시되던 문제)
@@ -111,7 +117,7 @@ jobs:
       ASPECT_RATIO: ${{ github.event.inputs.aspect || github.event.client_payload.cfg.aspect || github.event.client_payload.aspect || vars.ASPECT_RATIO || '16:9' }}
       # ── Veo 실사 클립 ── 켜면 클립당 요금이 붙어 회당 비용이 크게 오르므로 기본은 꺼둔다.
       USE_VEO: ${{ github.event.inputs.use_veo || github.event.client_payload.cfg.use_veo || github.event.client_payload.use_veo || vars.USE_VEO || 'true' }}
-      VEO_CLIP_COUNT: ${{ vars.VEO_CLIP_COUNT || '4' }}
+      VEO_CLIP_COUNT: ${{ vars.VEO_CLIP_COUNT || '6' }}
       # Veo API 는 4·6·8초만 허용한다(5초 불가).
       VEO_CLIP_SECONDS: ${{ vars.VEO_CLIP_SECONDS || '4' }}
       CONTENT_MODE: ${{ github.event.inputs.content_mode || github.event.client_payload.cfg.content_mode || github.event.client_payload.content_mode || vars.CONTENT_MODE || 'auto' }}
@@ -257,7 +263,7 @@ jobs:
               "oo=\(s("openai-text"; .outputTokens))",
               "img=\(s("openai-image"; .images))",
               "gimg=\(s("gemini-image"; .images))",
-              "tts=\(s("elevenlabs"; .chars))"' out/usage.json >> "$GITHUB_OUTPUT" || echo "has=0" >> "$GITHUB_OUTPUT"
+              "tts=\(s("elevenlabs"; .chars) + s("gemini-tts"; .chars))"' out/usage.json >> "$GITHUB_OUTPUT" || echo "has=0" >> "$GITHUB_OUTPUT"
             echo "has=1" >> "$GITHUB_OUTPUT"
             echo "── 이번 실행 사용량 ──"; cat out/usage.json | jq -c 'group_by(.kind)[] | {kind: .[0].kind, n: length}'
           else

@@ -1019,9 +1019,9 @@
           const b = d.breakdown, t = d.total, won = (u) => Math.round(u * d.price.usdKrw).toLocaleString() + '원';
           $('costTbl').innerHTML = [
             ['대본 (Claude)', `${(t.claudeIn + t.claudeOut).toLocaleString()} 토큰`, b.claude],
-            ['리서치 (OpenAI)', `${(t.openaiIn + t.openaiOut).toLocaleString()} 토큰`, b.openai],
+            ['리서치 (OpenAI, 미사용)', `${(t.openaiIn + t.openaiOut).toLocaleString()} 토큰`, b.openai],
             ['썸네일 이미지', `${t.images}장`, b.image],
-            ['나레이션 (ElevenLabs)', `${t.ttsChars.toLocaleString()}자`, b.tts],
+            ['나레이션 (Gemini TTS)', `${t.ttsChars.toLocaleString()}자`, b.tts],
           ].map(([k, q, u]) => `<tr><td>${k}</td><td style="color:#6a6f78">${q}</td><td>${won(u)}</td></tr>`).join('');
           $('costNote').textContent = d.note;
         } catch (e) { /* 비용 표시는 부가 기능이라 실패해도 조용히 넘어간다 */ }
