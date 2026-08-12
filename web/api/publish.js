@@ -48,10 +48,15 @@ export default async function handler(req, res) {
   // 실사 클립은 필수 구성이라, 값이 안 오면(캐시된 옛 화면 등) 서버 기본값(켜짐)을 따른다.
   // false 로 떨어뜨리면 견적은 Veo 없이 내고 파이프라인은 Veo 를 돌려 상한 검사가 헛돈다.
   const wantsVeo = body.veo === undefined ? VEO.enabled : truthyFlag(body.veo);
+  // 대본 미리보기(대본까지만) / 이어만들기(미리보기 대본 재사용) — 비용이 서로 다르다.
+  const previewOnly = truthyFlag(body.preview);
+  const resumeRunId = String(body.resumeRun || '').replace(/\D/g, '');
   const est = estimateRun({
     minutes: Math.max(1, Math.min(20, Number(body.minutes) || 1)),
     research: willResearch,
     veo: wantsVeo,
+    scriptOnly: previewOnly,
+    reuseScript: Boolean(resumeRunId),
   });
   if (est.krw > LIMITS.perRunKrw) {
     return res.status(403).json({
@@ -116,6 +121,10 @@ export default async function handler(req, res) {
     aspect: ['16:9', '9:16'].includes(body.aspect) ? body.aspect : '',
     // Veo 실사 클립 사용 여부. 켜면 클립당 요금이 붙으므로 명시적으로 켤 때만 'true'.
     use_veo: wantsVeo ? 'true' : 'false',
+    // 대본까지만 만들고 멈춘다(약 130원). 나레이션·이미지·실사·업로드를 건너뛴다.
+    preview_only: previewOnly ? 'true' : 'false',
+    // 미리보기 실행 ID — 그 실행의 대본을 이어받아 나머지만 만든다.
+    resume_run_id: resumeRunId,
   };
 
   // 알 수 없는 키가 섞여 오면 조용히 버리지 말고 응답에 알려준다(오타로 인한 설정 유실 방지).
@@ -123,6 +132,7 @@ export default async function handler(req, res) {
     'topic', 'mode', 'content_mode', 'level', 'content_level', 'upload', 'do_upload',
     'minutes', 'target_minutes', 'channel', 'privacy', 'style', 'speed', 'narration_speed', 'password',
     'art', 'art_style', 'tone', 'narration_tone', 'agency', 'aspect', 'veo',
+    'preview', 'resumeRun',
   ]);
   const ignored = Object.keys(body).filter((k) => !KNOWN.has(k));
 

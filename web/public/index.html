@@ -60,6 +60,30 @@
       }
       button.est-btn:active { transform: scale(0.99); }
       button.est-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+      .btnrow { display: flex; gap: 10px; }
+      .btnrow > button { flex: 1; }
+      .est-btn .tag {
+        display: inline-block; margin-left: 6px; padding: 2px 7px; border-radius: 999px;
+        background: #1d2433; color: var(--sub); font-size: 12px; font-weight: 700;
+      }
+      /* 대본 미리보기 결과 */
+      .prev { display: none; margin-top: 18px; padding: 16px; border-radius: 14px; background: #10141d; border: 1px solid var(--line); }
+      .prev.show { display: block; }
+      .prev-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
+      .prev-head > span:first-child { font-size: 15px; font-weight: 800; color: var(--ink); }
+      .prev-meta { font-size: 12px; color: var(--sub); }
+      .scene { padding: 11px 0; border-top: 1px solid var(--line); }
+      .scene:first-child { border-top: none; }
+      .scene-top { display: flex; align-items: baseline; gap: 8px; }
+      .scene-no { font-size: 12px; font-weight: 800; color: var(--accent2); min-width: 26px; }
+      .scene-h { font-size: 14px; font-weight: 700; color: var(--ink); flex: 1; }
+      .scene-sec { font-size: 12px; color: var(--sub); }
+      .scene-n { margin: 5px 0 7px 34px; font-size: 13px; color: var(--sub); line-height: 1.6; }
+      /* 컷 막대 — 폭이 컷 길이에 비례한다. 실사 컷은 강조색. */
+      .cuts { display: flex; gap: 3px; margin-left: 34px; }
+      .cuts i { height: 9px; border-radius: 3px; background: #2a3448; }
+      .cuts i.clip { background: linear-gradient(90deg, var(--accent), #f76707); }
+      .prev-warn { margin-top: 12px; padding: 10px 12px; border-radius: 10px; background: #331a1a; color: #ffa8a8; font-size: 12px; }
       .est-row { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
       .est-label { font-size: 13px; color: var(--sub); }
       .est-amt { font-size: 20px; font-weight: 800; color: var(--ink); }
@@ -272,14 +296,6 @@
             </select>
           </div>
           <div>
-            <label for="mode">모드</label>
-            <select id="mode">
-              <option value="auto">자동(주제 있으면 그걸로)</option>
-              <option value="trend">최신 트렌드</option>
-              <option value="basics">기초 상식</option>
-            </select>
-          </div>
-          <div>
             <label for="level">타겟층</label>
             <select id="level">
               <option value="basic">일반 국민 — 쉬운 말로 풀어서</option>
@@ -308,7 +324,23 @@
         <!-- 주제·보기 선택 → [견적 표시] → 금액 확인 → [만들기] → 비밀번호 → 실행.
              견적을 눌러 본 뒤에만 만들 수 있게 해서, 금액을 모르고 실행하는 경우를 없앤다.
              비밀번호는 마지막에 둬서 금액을 본 뒤 한 번 더 확인하고 넘어가게 한다. -->
-        <button id="estBtn" class="est-btn">💰 견적 표시</button>
+        <div class="btnrow">
+          <button id="prevBtn" class="est-btn">📝 대본 미리보기 <b class="tag">약 130원</b></button>
+          <button id="estBtn" class="est-btn">💰 견적 표시</button>
+        </div>
+
+        <!-- 대본 미리보기 결과 — 실제 씬/나레이션과, 거기서 역산한 화면 구성(컷) -->
+        <div class="prev" id="prev">
+          <div class="prev-head">
+            <span id="prevTitle">대본 미리보기</span>
+            <span class="prev-meta" id="prevMeta"></span>
+          </div>
+          <div id="prevBody"></div>
+          <button id="resumeBtn" class="go" style="margin-top: 18px">🚀 이 대본으로 만들기</button>
+          <div class="hint" style="text-align: left">
+            미리보기에서 본 대본을 그대로 씁니다 — 대본을 다시 쓰지 않으니 내용이 바뀌지 않고, 대본 비용도 다시 들지 않아요.
+          </div>
+        </div>
 
         <div class="est" id="est">
           <div class="est-row">
@@ -405,7 +437,7 @@
       // (웹서치 리서치는 주제를 지정했거나 트렌드 모드일 때만 돌고, 그게 비용의 큰 몫이다.)
       async function refreshEstimate() {
         const minutes = TARGET_MINUTES;
-        const willResearch = $('topic').value.trim() !== '' || $('mode').value === 'trend';
+        const willResearch = $('topic').value.trim() !== '';
         const btn = $('estBtn');
         btn.disabled = true;
         btn.textContent = '계산 중…';
@@ -414,7 +446,9 @@
         $('estSub').textContent = '';
         try {
           // 실사 클립은 선택이 아니라 필수 구성이라 항상 켠 값으로 견적을 낸다.
-          const r = await fetch(`/api/estimate?minutes=${minutes}&research=${willResearch}&veo=true`);
+          // 미리보기를 이미 돌렸다면 대본을 재사용하므로 그만큼 싸진다.
+          const reuse = previewRunId ? '&reuseScript=true' : '';
+          const r = await fetch(`/api/estimate?minutes=${minutes}&research=${willResearch}&veo=true${reuse}`);
           const d = await r.json();
           if (!r.ok) throw new Error(d.error || '견적 조회 실패');
           const over = d.krw > d.limits.perRunKrw;
@@ -445,33 +479,57 @@
         }
       }
       let lastEstimate = null;
+      let previewRunId = null; // 미리보기로 만든 대본이 있는 실행 ID(있으면 이어만들기)
       const fmtUsd = (n) => (n ? '$' + n.toFixed(2) : '$0');
 
-      // 선택을 바꾸면 이전 견적은 더 이상 맞지 않는다 — 감추고 [만들기]를 다시 잠근다.
+      // 선택을 바꾸면 이전 견적·미리보기는 더 이상 맞지 않는다 — 감추고 [만들기]를 다시 잠근다.
       function invalidateEstimate() {
-        if (!lastEstimate) return;
-        lastEstimate = null;
-        $('est').classList.remove('show');
-        $('go').disabled = true;
-        $('estBtn').textContent = '💰 견적 표시';
+        if (lastEstimate) {
+          lastEstimate = null;
+          $('est').classList.remove('show');
+          $('go').disabled = true;
+          $('estBtn').textContent = '💰 견적 표시';
+        }
+        // 주제나 조건이 바뀌었으면 이미 만든 대본은 그 조건의 대본이 아니다.
+        if (previewRunId) {
+          previewRunId = null;
+          $('prev').classList.remove('show');
+          $('prevBtn').innerHTML = '📝 대본 미리보기 <b class="tag">약 130원</b>';
+        }
         closeConfirm();
       }
-      for (const id of ['topic', 'agency', 'mode', 'level', 'aspect', 'upload']) {
+      for (const id of ['topic', 'agency', 'level', 'aspect', 'upload']) {
         $(id).addEventListener(id === 'topic' ? 'input' : 'change', invalidateEstimate);
       }
       $('estBtn').addEventListener('click', refreshEstimate);
 
       // ── 만들기 → 비밀번호 확인 → 실행 ──
-      // 견적을 본 뒤 [만들기]를 누르면 확인 단계가 열리고, 거기서 비밀번호를 넣어야 실제로 돈이 나간다.
+      // 돈이 나가는 동작은 전부 이 확인 단계를 거친다(미리보기 130원도 돈이므로 예외 없음).
+      // pendingAction 이 어떤 동작을 확인 중인지 들고 있다: 'full' | 'preview' | 'resume'.
       let cooling = false;
-      function openConfirm() {
+      let pendingAction = 'full';
+      const ACTION_LABEL = { full: '영상 제작', preview: '대본 미리보기', resume: '이 대본으로 영상 제작' };
+
+      async function openConfirm(action = 'full') {
         if (cooling) return;
-        // 견적을 보지 않고는 여기까지 올 수 없다([만들기]가 잠겨 있다). 방어적으로 한 번 더 막는다.
-        if (!lastEstimate) {
+        pendingAction = action;
+        let krw = lastEstimate ? lastEstimate.krw : null;
+        // 미리보기는 [견적 표시]와 다른 금액이라 그 자리에서 따로 조회한다.
+        if (action === 'preview') {
+          const willResearch = $('topic').value.trim() !== '';
+          try {
+            const r = await fetch(`/api/estimate?minutes=${TARGET_MINUTES}&research=${willResearch}&scriptOnly=true`);
+            const d = await r.json();
+            krw = r.ok ? d.krw : null;
+          } catch { krw = null; }
+        } else if (!lastEstimate) {
           toast('먼저 [견적 표시]를 눌러 예상 비용을 확인해 주세요.', 'err');
           return;
         }
-        $('confirmAmt').textContent = `약 ${lastEstimate.krw.toLocaleString()}원이 청구됩니다.`;
+        $('confirmAmt').textContent =
+          `${ACTION_LABEL[action]} — ` +
+          (krw === null ? '예상 비용을 계산하지 못했습니다.' : `약 ${krw.toLocaleString()}원이 청구됩니다.`);
+        $('confirmGo').textContent = action === 'preview' ? '확인하고 대본 만들기' : '확인하고 제작 시작';
         $('confirm').classList.add('show');
         $('pw').focus();
         syncConfirmBtn();
@@ -484,7 +542,10 @@
       function syncConfirmBtn() {
         $('confirmGo').disabled = $('pw').value.trim() === '';
       }
-      $('go').addEventListener('click', openConfirm);
+      // previewRunId 가 있으면 그 대본을 이어받아 만든다(대본을 다시 쓰지 않는다).
+      $('go').addEventListener('click', () => openConfirm(previewRunId ? 'resume' : 'full'));
+      $('prevBtn').addEventListener('click', () => openConfirm('preview'));
+      $('resumeBtn').addEventListener('click', () => openConfirm('resume'));
       $('cancel').addEventListener('click', closeConfirm);
       $('pw').addEventListener('input', syncConfirmBtn);
       // 비밀번호 칸에서 엔터로 바로 진행
@@ -509,6 +570,8 @@
 
       async function publish() {
         const topic = $('topic').value.trim();
+        const action = pendingAction;
+        const isPreview = action === 'preview';
         const btn = $('go');
         const cbtn = $('confirmGo');
         if (cbtn.disabled) return;
@@ -516,44 +579,140 @@
         cbtn.disabled = true;
         cbtn.textContent = '요청 중...';
         btn.disabled = true;
+        $('prevBtn').disabled = true;
         try {
           const res = await fetch('/api/publish', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              topic, mode: $('mode').value, minutes: TARGET_MINUTES,
+              topic, minutes: TARGET_MINUTES,
               level: $('level').value,
-              upload: $('upload').checked, password: $('pw').value,
+              // 미리보기는 대본까지만 만들고 멈추므로 업로드가 있을 수 없다.
+              upload: isPreview ? false : $('upload').checked,
+              password: $('pw').value,
               agency: $('agency').value, aspect: $('aspect').value, veo: true,
+              preview: isPreview,
+              // 이어만들기: 미리보기 실행의 대본을 그대로 쓴다.
+              resumeRun: action === 'resume' ? previewRunId : '',
               // 업로드를 켜면 렌더가 끝나는 대로 곧바로 전체공개(public)로 발행한다.
               // (사람이 확인하고 누르는 단계 없이 자동으로 올라간다 — 체크박스 라벨에 명시.)
-              privacy: $('upload').checked ? 'public' : '',
+              privacy: !isPreview && $('upload').checked ? 'public' : '',
             }),
           });
           const data = await res.json();
           if (!res.ok) throw new Error((data.error || '요청 실패') + (data.detail ? ' — ' + data.detail : ''));
           triggeredAt = Date.now();
           shownPct = 0;
-          setLive('queued', { stage: '실행을 준비하고 있어요', sub: '잠시 후 GitHub Actions가 시작됩니다' });
-          toast('✅ 발행 요청을 보냈어요! 아래에서 제작 과정이 실시간으로 보여요.', 'info');
+          setLive('queued', {
+            stage: isPreview ? '대본을 쓰러 가는 중' : '실행을 준비하고 있어요',
+            sub: '잠시 후 GitHub Actions가 시작됩니다',
+          });
+          toast(
+            isPreview
+              ? '📝 대본 미리보기를 요청했어요. 1~2분 뒤 아래에 대본과 화면 구성이 나옵니다.'
+              : '✅ 발행 요청을 보냈어요! 아래에서 제작 과정이 실시간으로 보여요.',
+            'info',
+          );
           closeConfirm(); // 비밀번호를 화면에 남겨두지 않는다
           btn.textContent = '요청됨 · 실행 대기…';
           cbtn.textContent = '확인하고 제작 시작';
           setTimeout(() => {
             cooling = false;
             btn.disabled = false;
-            btn.textContent = '🚀 만들기';
+            $('prevBtn').disabled = false;
+            btn.textContent = previewRunId ? '🚀 이 대본으로 만들기' : '🚀 만들기';
           }, COOLDOWN_MS);
+          if (isPreview) waitForPreview();
           startPolling(1200);
         } catch (e) {
           toast('⚠️ ' + e.message, 'err');
           cooling = false;
           btn.disabled = false;
+          $('prevBtn').disabled = false;
           cbtn.textContent = '확인하고 제작 시작';
           syncConfirmBtn();
         }
       }
       $('confirmGo').addEventListener('click', publish);
+
+      // ── 대본 미리보기 결과 기다리기 ──
+      // 트리거한 뒤 새 실행이 잡힐 때까지 기다렸다가, 그 실행 로그에서 대본을 꺼내온다.
+      // (아티팩트 zip 을 풀지 않으려고 워크플로가 대본을 로그에 흘려둔다 — web/api/preview.js 참고)
+      async function waitForPreview(deadline = Date.now() + 10 * 60 * 1000) {
+        $('prev').classList.add('show');
+        $('prevTitle').textContent = '대본 미리보기';
+        $('prevMeta').textContent = '만드는 중…';
+        $('prevBody').innerHTML = '<div class="scene-n" style="margin-left:0">리서치와 대본 생성에 보통 1~2분 걸려요.</div>';
+        $('resumeBtn').style.display = 'none';
+
+        const tick = async () => {
+          if (Date.now() > deadline) {
+            $('prevMeta').textContent = '시간 초과';
+            return;
+          }
+          try {
+            const rr = await (await fetch('/api/runs')).json();
+            const newest = (rr.runs || [])[0];
+            // 내가 방금 띄운 실행이 목록에 잡히기 전이면 조금 더 기다린다.
+            if (!newest || Date.parse(newest.created_at) < triggeredAt - 20000) {
+              return setTimeout(tick, 5000);
+            }
+            const pr = await (await fetch(`/api/preview?run=${newest.id}`)).json();
+            if (pr.found) return renderPreview(newest.id, pr);
+            if (newest.status === 'completed' && pr.conclusion && pr.conclusion !== 'success') {
+              $('prevMeta').textContent = '실패';
+              $('prevBody').innerHTML =
+                '<div class="prev-warn">대본 생성이 실패했어요. 아래 실행 기록에서 로그를 확인해 주세요.</div>';
+              return;
+            }
+            setTimeout(tick, 5000);
+          } catch {
+            setTimeout(tick, 8000);
+          }
+        };
+        setTimeout(tick, 8000);
+      }
+
+      function renderPreview(runId, data) {
+        previewRunId = runId;
+        const o = data.outline;
+        const s = data.script || {};
+        $('prevTitle').textContent = s.title || '대본 미리보기';
+        $('prevMeta').textContent =
+          `${o.totalSec}초 예상 · ${o.scenes.length}씬 · ${o.totalCuts}컷 (평균 ${o.avgCutSec}초) · 실사 ${o.clipCuts}컷 · ${o.totalChars}자`;
+
+        // 컷 막대는 길이에 비례한 폭으로 그린다 — 어디서 화면이 바뀌는지 한눈에 보이게.
+        const esc = (t) => String(t).replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+        $('prevBody').innerHTML =
+          o.scenes
+            .map((sc) => {
+              const bars = sc.cuts
+                .map((c) => `<i class="${c.source === 'clip' ? 'clip' : ''}" style="flex:${c.sec}" title="${c.sec}초 ${c.source === 'clip' ? '실사' : '이미지'}"></i>`)
+                .join('');
+              return `<div class="scene">
+                <div class="scene-top">
+                  <span class="scene-no">#${sc.index}</span>
+                  <span class="scene-h">${esc(sc.heading)}${sc.liveaction ? ' 🎬' : ''}</span>
+                  <span class="scene-sec">${sc.sec}초 · ${sc.cuts.length}컷</span>
+                </div>
+                <div class="scene-n">${esc(sc.narration)}</div>
+                <div class="cuts">${bars}</div>
+              </div>`;
+            })
+            .join('') +
+          (o.overLimit
+            ? `<div class="prev-warn">⚠️ 나레이션이 ${o.totalSec}초로 60초를 넘습니다. 주제를 좁히거나 다시 만들어 주세요.</div>`
+            : '') +
+          '<div class="hint" style="text-align:left">🎬 표시는 실사 영상 클립이 붙는 씬이고, 주황색 막대가 그 구간이에요. 컷 수는 실제 나레이션 길이에 따라 ±1컷 달라질 수 있어요.</div>';
+
+        $('resumeBtn').style.display = '';
+        $('prevBtn').innerHTML = '📝 대본 다시 만들기 <b class="tag">약 130원</b>';
+        // 대본이 생겼으니 남은 비용이 달라진다 — 견적을 다시 받게 한다.
+        lastEstimate = null;
+        $('est').classList.remove('show');
+        $('go').disabled = true;
+        $('estBtn').textContent = '💰 견적 표시';
+      }
 
       function startPolling(delay = 0) {
         if (pollTimer) clearTimeout(pollTimer);

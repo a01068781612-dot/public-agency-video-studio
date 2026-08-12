@@ -13,9 +13,12 @@ export default async function handler(req, res) {
   const research = q.research === undefined ? true : q.research !== 'false' && q.research !== '0';
   // veo 를 안 주면 서버 기본값(USE_VEO)을 따른다.
   const veo = q.veo === undefined ? undefined : q.veo !== 'false' && q.veo !== '0';
+  // 대본 미리보기(대본까지만) / 이어만들기(대본 재사용) 견적.
+  const scriptOnly = q.scriptOnly === 'true' || q.scriptOnly === '1';
+  const reuseScript = q.reuseScript === 'true' || q.reuseScript === '1';
 
   const { researchIn, samples } = await calibrate();
-  const est = estimateRun({ minutes, research, researchIn, veo });
+  const est = estimateRun({ minutes, research, researchIn, veo, scriptOnly, reuseScript });
 
   return res.status(200).json({
     minutes,

@@ -18,36 +18,42 @@ export const MODEL = {
 };
 
 /**
- * @param {{minutes:number, research:boolean, researchIn?:number, veo?:boolean}} opts
+ * @param {{minutes:number, research:boolean, researchIn?:number, veo?:boolean, scriptOnly?:boolean, reuseScript?:boolean}} opts
  *   researchIn 을 주면 실측 보정값으로 대체한다.
  *   veo 를 주면 그 값으로, 안 주면 서버 기본값(USE_VEO)으로 계산한다.
+ *   scriptOnly: 대본 미리보기 — 리서치·대본만 돌리고 멈춘다.
+ *   reuseScript: 이어만들기 — 미리보기에서 만든 대본을 재사용하므로 리서치·대본 비용이 없다.
  */
-export function estimateRun({ minutes, research, researchIn, veo }) {
+export function estimateRun({ minutes, research, researchIn, veo, scriptOnly, reuseScript }) {
   const m = { ...MODEL, ...(researchIn ? { researchIn } : {}) };
   const useVeo = veo === undefined ? VEO.enabled : Boolean(veo);
-  const veoSeconds = useVeo ? VEO.clipCount * VEO.clipSeconds : 0;
+  // 미리보기는 대본까지만, 이어만들기는 대본 이후만 — 두 번 합쳐도 한 번 값과 같아야 한다.
+  const veoSeconds = useVeo && !scriptOnly ? VEO.clipCount * VEO.clipSeconds : 0;
+  const claudeOn = !reuseScript;
 
   const usage = {
-    claudeIn: (research ? m.researchIn : 0) + m.scriptIn,
-    claudeOut: (research ? m.researchOut : 0) + Math.round(m.scriptOutPerMin * minutes),
-    ttsChars: Math.round(m.charsPerMin * minutes),
-    geminiImages: m.images,
+    claudeIn: claudeOn ? (research ? m.researchIn : 0) + m.scriptIn : 0,
+    claudeOut: claudeOn ? (research ? m.researchOut : 0) + Math.round(m.scriptOutPerMin * minutes) : 0,
+    ttsChars: scriptOnly ? 0 : Math.round(m.charsPerMin * minutes),
+    geminiImages: scriptOnly ? 0 : m.images,
     images: 0,
     veoSeconds,
   };
 
   const breakdown = {
-    research: research ? r6((m.researchIn * PRICE.claudeIn + m.researchOut * PRICE.claudeOut) / 1e6) : 0,
-    script: r6((m.scriptIn * PRICE.claudeIn + m.scriptOutPerMin * minutes * PRICE.claudeOut) / 1e6),
+    research: claudeOn && research ? r6((m.researchIn * PRICE.claudeIn + m.researchOut * PRICE.claudeOut) / 1e6) : 0,
+    script: claudeOn ? r6((m.scriptIn * PRICE.claudeIn + m.scriptOutPerMin * minutes * PRICE.claudeOut) / 1e6) : 0,
     tts: r6((usage.ttsChars / 1000) * PRICE.tts1k),
-    images: r6(m.images * PRICE.geminiImage),
+    images: r6(usage.geminiImages * PRICE.geminiImage),
     veo: r6(veoSeconds * PRICE.veoSec),
   };
   const usd = cost(usage);
   return {
     usage,
     breakdown,
-    veo: { enabled: useVeo, clips: useVeo ? VEO.clipCount : 0, seconds: veoSeconds },
+    veo: { enabled: useVeo && !scriptOnly, clips: veoSeconds ? VEO.clipCount : 0, seconds: veoSeconds },
+    scriptOnly: Boolean(scriptOnly),
+    reuseScript: Boolean(reuseScript),
     usd: r6(usd),
     krw: Math.round(usd * PRICE.usdKrw),
   };

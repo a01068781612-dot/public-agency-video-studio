@@ -52,6 +52,14 @@ on:
         description: 'Veo 실사 클립 사용 (true | false). 켜면 회당 비용이 크게 오름'
         required: false
         default: ''
+      preview_only:
+        description: '대본만 만들고 멈춤 (true). 나레이션·이미지·실사·업로드를 건너뛰어 약 130원만 쓴다'
+        required: false
+        default: ''
+      resume_run_id:
+        description: '미리보기 실행 ID. 주면 그 실행의 대본을 그대로 이어받아 나머지만 만든다(대본 재생성 없음)'
+        required: false
+        default: ''
   # 웹앱/외부에서 트리거 (client_payload 로 topic 전달)
   repository_dispatch:
     types: [publish-video]
@@ -60,6 +68,10 @@ jobs:
   publish:
     runs-on: ubuntu-latest
     timeout-minutes: 120
+    # 이어만들기(resume)가 이전 실행의 대본 아티팩트를 내려받으려면 actions:read 가 필요하다.
+    permissions:
+      contents: read
+      actions: read
     # 파이프라인 단계별 스텝이 공유하는 환경변수 (웹앱 진행바가 스텝을 읽을 수 있도록 4단계로 분리)
     env:
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -131,6 +143,12 @@ jobs:
       IMAGE_PROVIDER: ${{ vars.IMAGE_PROVIDER || 'openai' }}
       GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
       GEMINI_IMAGE_MODEL: ${{ vars.GEMINI_IMAGE_MODEL || 'gemini-3.1-flash-image' }}
+      # ── 대본 미리보기 ── true 면 대본까지만 만들고 멈춘다(약 130원). 나레이션부터가 비용의 대부분이라,
+      # 검색 결과와 대본이 쓸 만한지 먼저 보고 나서 나머지를 승인하게 하기 위한 단계.
+      PREVIEW_ONLY: ${{ github.event.inputs.preview_only || github.event.client_payload.preview_only || 'false' }}
+      # 미리보기 실행 ID. 주면 그 실행의 대본을 내려받아 그대로 쓴다 — 미리보기에서 본 것과
+      # 다른 영상이 나오지 않게 하고, 대본 비용도 두 번 내지 않게 한다.
+      RESUME_RUN_ID: ${{ github.event.inputs.resume_run_id || github.event.client_payload.resume_run_id || '' }}
     steps:
       - name: 체크아웃
         uses: actions/checkout@v4
@@ -141,7 +159,9 @@ jobs:
           node-version: 20
           cache: 'npm'
 
+      # 아래 세 단계는 렌더링에만 필요하다. 대본 미리보기는 5분 넘는 이 준비를 통째로 건너뛴다.
       - name: 한국어 폰트 & Chromium 의존성 설치
+        if: env.PREVIEW_ONLY != 'true'
         run: |
           sudo apt-get update
           sudo apt-get install -y \
@@ -155,22 +175,47 @@ jobs:
         run: npm ci
 
       - name: Remotion 브라우저 준비
+        if: env.PREVIEW_ONLY != 'true'
         run: npx remotion browser ensure
 
       - name: Playwright 브라우저 준비 (3D 웹녹화용)
+        if: env.PREVIEW_ONLY != 'true'
         run: npx playwright install --with-deps chromium
+
+      # 이어만들기: 미리보기 실행이 남긴 대본을 그대로 가져온다(대본을 다시 쓰지 않는다).
+      - name: 이전 대본 복원
+        if: env.RESUME_RUN_ID != ''
+        uses: actions/download-artifact@v4
+        with:
+          name: video-output
+          run-id: ${{ env.RESUME_RUN_ID }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: out
 
       # ── 여기부터 4단계: 웹앱 진행바가 이 스텝 이름으로 진행도를 표시 ──
       - name: 대본 생성
+        if: env.RESUME_RUN_ID == ''
         run: npm run generate:script
 
+      # 미리보기 결과를 로그에 그대로 흘린다. 웹앱은 아티팩트 zip 을 풀 수 없으므로
+      # (서버리스에 unzip 의존성을 넣지 않으려고) 로그에서 이 구간을 잘라 읽는다.
+      - name: 대본 미리보기 출력
+        if: env.PREVIEW_ONLY == 'true'
+        run: |
+          echo "<<<SCRIPT_PREVIEW_BEGIN>>>"
+          jq -c . out/script.json
+          echo "<<<SCRIPT_PREVIEW_END>>>"
+
       - name: 나레이션 생성
+        if: env.PREVIEW_ONLY != 'true'
         run: npm run generate:voice
 
       - name: 렌더링
+        if: env.PREVIEW_ONLY != 'true'
         run: npm run render
 
       - name: 유튜브 업로드
+        if: env.PREVIEW_ONLY != 'true'
         run: npm run upload
 
       - name: 산출물 업로드(디버그용 아티팩트)
