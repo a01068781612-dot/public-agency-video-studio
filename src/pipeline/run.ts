@@ -21,7 +21,7 @@ import {
   HEIGHT,
   audioStaticPath,
 } from '../config.js';
-import { ScriptSchema, type Script, type RenderManifest, type SceneWithAudio } from '../schema.js';
+import { ScriptSchema, stripEmphasis, type Script, type RenderManifest, type SceneWithAudio } from '../schema.js';
 import { generateScript } from '../lib/anthropic.js';
 import { resolveAgency } from '../lib/agency.js';
 import { generateDeck } from '../lib/deckgen.js';
@@ -177,7 +177,8 @@ async function stepVoice(): Promise<RenderManifest | null> {
   for (const [i, scene] of script.scenes.entries()) {
     const ext = audioExt();
     const outPath = `${AUDIO_DIR}/${scene.id}.${ext}`;
-    const { durationSec } = await synthesizeSpeech({ text: scene.narration, outPath });
+    // 자막 강조 표시(【】)는 화면용이다 — 그대로 읽히면 성우가 괄호를 발음하거나 멈칫한다.
+    const { durationSec } = await synthesizeSpeech({ text: stripEmphasis(scene.narration), outPath });
     const durationInFrames = Math.ceil(durationSec * FPS) + TAIL_PAD_FRAMES;
     scenes.push({
       ...scene,

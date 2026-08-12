@@ -11,12 +11,14 @@ import {
   interpolate,
 } from 'remotion';
 import type { RenderManifest } from '../schema.js';
+import { splitEmphasis } from '../schema.js';
 import { theme as lightTheme, darkTheme } from './theme.js';
 import { PRETENDARD } from './pretendard.js';
 import { captionChunks } from './components/beats.js';
 import { IsoDiagram, IsoComparison } from './components/iso.js';
 import { BulletSlide, QuoteSlide, CodeSlide } from './components/slides.js';
 import { FlatIconSlide } from './components/flatIcon.js';
+import { BeatGraphic } from './components/motion.js';
 
 /**
  * 일러스트 영상: 씬마다 흑백 라인아트 이미지를 배경에 꽉 채워 보여주고(줌인/줌아웃),
@@ -164,6 +166,8 @@ const SceneShot: React.FC<{ scene: RenderManifest['scenes'][number]; index: numb
             <CutShot cut={cut} scene={scene} theme={theme} />
           </Sequence>
         ))}
+        {/* 사진 위에 얹히는 모션그래픽(카운트업·막대·불릿). 컷과 무관하게 씬 전체에 걸친다. */}
+        <BeatGraphic scene={scene} />
         <WordCaption narration={scene.narration} durationInFrames={dur} />
       </AbsoluteFill>
     );
@@ -263,13 +267,33 @@ const CutShot: React.FC<{
 };
 
 /** 하단 중앙 짧은 자막(구절 단위) — 흰 배경/그림 위에서도 잘 보이게 어두운 알약 + 흰 글씨. */
+/**
+ * 【】로 감싼 강조 구간이 "괄호를 뗀 문자열" 기준 어디에 있는지 [시작, 끝) 로 돌려준다.
+ * 대본이 핵심어를 표시하고, 자막이 그 부분만 다른 색으로 칠하는 데 쓴다.
+ */
+function emphasisRanges(t: string): [number, number][] {
+  const out: [number, number][] = [];
+  let plainIdx = 0;
+  for (const part of splitEmphasis(t)) {
+    if (part.strong) out.push([plainIdx, plainIdx + part.text.length]);
+    plainIdx += part.text.length;
+  }
+  return out;
+}
+
 const WordCaption: React.FC<{ narration: string; durationInFrames: number }> = ({ narration, durationInFrames }) => {
   const frame = useCurrentFrame();
-  const chunks = captionChunks(narration, durationInFrames, 16);
+  // 강조 표시(【】)는 자막에서 색으로만 쓰고, 글자 수 계산에는 들어가면 안 된다 —
+  // 괄호까지 세면 타이밍이 밀린다. 강조 구간의 위치만 따로 기억해 둔다.
+  const strongRanges = emphasisRanges(narration);
+  const plain = narration.replace(/[【】]/g, '');
+  const chunks = captionChunks(plain, durationInFrames, 16);
   if (chunks.length === 0) return null;
   const cur = chunks.find((b) => frame >= b.start && frame < b.end) ?? chunks[chunks.length - 1];
 
   const words = cur.text.split(/(\s+)/); // 공백 유지
+  // 이 조각이 전체 나레이션에서 어디부터 시작하는지 — 강조 구간과 맞춰보려면 필요하다.
+  const chunkStart = plain.indexOf(cur.text);
   const span = Math.max(1, cur.end - cur.start);
   const prog = Math.max(0, Math.min(1, (frame - cur.start) / span));
   const totalLen = cur.text.length || 1;
@@ -307,10 +331,13 @@ const WordCaption: React.FC<{ narration: string; durationInFrames: number }> = (
         {words.map((w, i) => {
           if (/^\s+$/.test(w)) return w;
           const before = acc / totalLen;
+          const at = chunkStart < 0 ? -1 : chunkStart + acc;
           acc += w.length;
           const spoken = prog >= before;
+          // 핵심어는 이미 읽힌 뒤에도 계속 강조색으로 남겨 눈에 박히게 한다.
+          const strong = at >= 0 && strongRanges.some((r) => at >= r[0] && at < r[1]);
           return (
-            <span key={i} style={{ color: spoken ? '#ffffff' : '#ffffff70' }}>
+            <span key={i} style={{ color: strong ? (spoken ? '#ffd43b' : '#ffd43b80') : spoken ? '#ffffff' : '#ffffff70' }}>
               {w}
             </span>
           );

@@ -21,6 +21,7 @@ const sampleManifest: RenderManifest = {
   scenes: [
     {
       id: 's1',
+    beat: 'hook',
       heading: 'AI 는 어떻게 생각할까?',
       narration: '오늘은 인공지능이 어떻게 작동하는지 아주 쉽게 알아봅니다. 준비되셨나요?',
       bullets: ['핵심만, 쉽게, 그림으로'],
@@ -34,6 +35,7 @@ const sampleManifest: RenderManifest = {
     },
     {
       id: 's2',
+    beat: 'context',
       heading: '3단계로 이해하기',
       narration: '첫째 입력, 둘째 처리, 셋째 출력. 이 흐름만 기억하면 됩니다.',
       bullets: ['입력을 받는다', '패턴을 계산한다', '결과를 내놓는다'],
@@ -57,6 +59,7 @@ const sampleManifest: RenderManifest = {
     },
     {
       id: 's3',
+    beat: 'data',
       heading: '규칙 기반 vs AI 기반',
       narration: '규칙 기반은 사람이 정한 조건만 따르지만, AI 기반은 데이터를 보고 스스로 패턴을 찾아냅니다.',
       bullets: [],
@@ -75,6 +78,7 @@ const sampleManifest: RenderManifest = {
     },
     {
       id: 's4',
+    beat: 'insight',
       heading: 'RAG 가 하는 일 3가지',
       narration: '첫째 문서를 조각내 검색용으로 저장하고, 둘째 질문이 오면 관련 조각을 찾고, 셋째 그 조각을 근거로 답을 만듭니다.',
       bullets: ['문서를 조각내 저장한다', '질문과 관련된 조각을 찾는다', '조각을 근거로 답을 생성한다'],
@@ -87,6 +91,7 @@ const sampleManifest: RenderManifest = {
     },
     {
       id: 's5',
+    beat: 'action',
       heading: '핵심 한 줄',
       narration: '결국 AI 는 확률적으로 그럴듯한 다음 단어를 고르는 기계입니다.',
       bullets: [],

@@ -1,7 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { zodOutputFormat } from '@anthropic-ai/sdk/helpers/zod';
 import { config } from '../config.js';
-import { ScriptSchema, type Script } from '../schema.js';
+import { ScriptSchema, type Script, type Scene, type BeatKind } from '../schema.js';
 import { recordUsage } from './usage.js';
 import { thinkingParam } from './claudeCaps.js';
 import { buildToneGuide, resolveTone } from './tone.js';
@@ -194,6 +194,23 @@ export async function generateScript(params: {
     '- 절대 하지 말 것: "~를 공개했습니다", "~가 오른 제품명" 같은 밋밋한 서술문과 사실 나열. "그거", "이거" 처럼 배지에도 대상이 없이 사라지는 낚시. "~완벽정리", "~진짜 원리" 같은 뻔한 클리셰. 과장·거짓. — 자료에 있는 사실을 "가장 세게 말하는 방식"을 찾는 것이지, 없는 말을 짓는 게 아니다.',
     '- description(설명란)은 실제 줄바꿈(\\n)으로 문단을 나눈다: 먼저 3~5문장 요약, 그다음 빈 줄, 그다음 "홍보 포인트:" 아래에 이 영상 내용 중 보도자료·SNS 홍보물에 바로 쓸 수 있는 핵심 문장·수치 1~2개, 그다음 빈 줄, 그다음 "다루는 내용:" 아래에 항목마다 줄바꿈해 나열한다. (한 덩어리로 붙여쓰지 말 것)',
     '- tags 는 검색 최적화된 한국어/영어 키워드 8~15개(공공기관·정책·홍보 관련 키워드를 최소 2~3개 포함).',
+    ...(isCapped
+      ? [
+          '',
+          '★1분 홍보영상 구성(반드시 이 순서로)★ 씬마다 beat 를 지정해 아래 이야기 구조를 만든다. 같은 beat 를 두 번 쓰지 말고 순서대로 하나씩 쓴다.',
+          '  1) beat="hook" — 질문이나 놀라운 수치 한 방으로 연다. 가장 짧게(30~50자). 설명하지 말고 궁금하게 만든다.',
+          '  2) beat="context" — 왜 이 얘기가 나왔는지 배경. 이 씬에는 metric 을 반드시 채운다(value=숫자만, unit=단위, label=무엇의 수치인지). 화면에서 그 숫자가 0부터 굴러 올라간다.',
+          '  3) beat="data" — 가장 중요한 수치. 순위·비교가 되는 항목이 2~4개 있으면 ranking 을 채운다(label/value/unit) — 화면에 막대그래프가 차례로 차오른다. 순위로 만들 수 없는 내용이면 ranking 은 비워둔다.',
+          '  4) beat="insight" — 그래서 이게 뭘 뜻하는지, 해석과 의미.',
+          '  5) beat="action" — 기관이 실제로 한 일 / 정책 / 앞으로의 계획. 이 씬에는 bullets 를 3개 채운다(각 8~16자). 화면에 하나씩 밀려 올라온다.',
+          '  6) beat="outro" — 한 줄로 정리하고 끝낸다. 가장 짧게(30~45자).',
+          '',
+          '★핵심어 강조★ 각 씬 narration 에서 가장 중요한 단어나 구절 하나를 【 】로 감싼다(씬당 1곳, 4~12자). 자막에서 그 부분만 색이 바뀐다. 문장 전체를 감싸지 말고 핵심어만 감싼다. 예: "데이터 처리 능력은 【AI 시대의 필수 역량】입니다."',
+          '  · 【 】는 화면 표시용이라 읽을 때는 없는 것처럼 처리된다. 괄호를 빼고 읽어도 자연스러운 문장이어야 한다.',
+          '',
+          'metric·ranking 의 숫자는 리서치나 브리핑에 실제로 나온 값만 쓴다. 없으면 그 필드를 비워둬라 — 화면에 큰 숫자로 박히기 때문에 지어내면 바로 사고가 된다.',
+        ]
+      : []),
   ].join('\n');
 
   // 한 번 생성해서 Script 로 파싱하는 내부 실행기(분량 미달 시 재시도에 재사용).
@@ -320,50 +337,72 @@ export async function generateScript(params: {
   };
 
   /**
-   * 실사 클립(liveaction) 개수를 맞춘다.
+   * 실사 클립을 비트(역할)에 맞춰 배치한다.
    *
-   * "최대 N개까지 쓸 수 있다"고만 안내했더니 모델이 0개를 골라, 실사 클립이 필수 구성인데도
-   * 정지 그림만 있는 영상이 나왔다. 프롬프트를 필수로 바꿨지만 그것만 믿지 않는다 —
-   * 모자라면 illustration 씬을 승격시켜 코드로 채운다(도입·전환·마무리 직전에 고르게 배치).
+   * 예전엔 씬을 타임라인에 균등 분배했는데, 그러면 "왜 여기에 실사가 들어가는지"가 없다.
+   * 이야기에서 실사가 필요한 자리는 정해져 있다 — 시선을 잡아야 하는 도입, 화제가 바뀌는
+   * 전환점, 그리고 마무리. 반대로 숫자를 보여주는 context 는 실사보다 그래픽이 낫다.
+   *
+   * 총량은 "초"로 관리한다(개수가 아니라). 클립 길이가 4·6·8 로 다를 수 있어서
+   * 개수로 재면 요금이 어긋난다 — 예산 = 클립수 × 클립길이 초를 넘지 않게 한다.
    */
-  const ensureLiveAction = (s: Script, want: number): Script => {
-    if (want <= 0) return s;
+  const assignLiveAction = (s: Script, budgetSec: number): Script => {
+    if (budgetSec <= 0) return s;
     const scenes = s.scenes.map((sc) => ({ ...sc }));
-    const already = scenes.filter((sc) => sc.visual === 'liveaction');
-    if (already.length >= want) return s;
 
-    // 승격 후보 = 그림 묘사가 있는 illustration 씬(그 묘사가 Veo 의 시작 프레임이 된다).
-    const candidates = scenes
-      .map((sc, i) => ({ sc, i }))
-      .filter(({ sc }) => sc.visual === 'illustration' && (sc.illustration ?? '').trim() !== '');
-    if (candidates.length === 0) {
-      console.warn(`[대본] 실사 클립 ${want}개가 필요한데 승격할 illustration 씬이 없습니다 — 정지 그림만으로 진행합니다.`);
+    // 실사가 들어갈 자리의 우선순위. hook 이 두 번 나오는 건 예산이 남으면 도입을
+    // 8초로 늘려 앞을 실사로 꽉 채우기 위해서다(스크롤을 멈추는 건 첫 3초라 여기가 제일 값지다).
+    const PRIORITY: BeatKind[] = ['hook', 'data', 'insight', 'action', 'outro', 'hook'];
+    const usable = (sc: Scene) =>
+      (sc.illustration ?? '').trim() !== '' && sc.visual !== 'bullets' && sc.visual !== 'diagram' && sc.visual !== 'comparison';
+
+    let spent = 0;
+    const chosen: Scene[] = [];
+    for (const beat of PRIORITY) {
+      const sc = scenes.find((x) => x.beat === beat && usable(x));
+      if (!sc) continue;
+      const already = chosen.includes(sc);
+      // 같은 씬이 두 번 뽑히면(=hook 재등장) 길이를 늘린다. 4→8초.
+      const add = already ? 4 : (sc.clipSeconds ?? 4);
+      if (spent + add > budgetSec) continue;
+      spent += add;
+      if (already) sc.clipSeconds = 8;
+      else {
+        sc.visual = 'liveaction';
+        sc.clipSeconds = normalizeClip(sc.clipSeconds ?? 4);
+        sc.motion = sc.motion ?? 'slow push in, subtle natural movement, people and background moving gently';
+        chosen.push(sc);
+      }
+    }
+
+    // 비트가 모자라 예산이 남으면 남은 illustration 씬을 앞에서부터 채운다.
+    if (spent + 4 <= budgetSec) {
+      for (const sc of scenes) {
+        if (spent + 4 > budgetSec) break;
+        if (chosen.includes(sc) || !usable(sc) || sc.visual === 'liveaction') continue;
+        sc.visual = 'liveaction';
+        sc.clipSeconds = 4;
+        sc.motion = sc.motion ?? 'slow push in, subtle natural movement';
+        chosen.push(sc);
+        spent += 4;
+      }
+    }
+
+    if (chosen.length === 0) {
+      console.warn('[대본] 실사로 쓸 만한 씬이 없습니다 — 정지 그림만으로 진행합니다.');
       return s;
     }
-
-    const need = Math.min(want - already.length, candidates.length);
-    // 후보를 타임라인에 고르게 흩어 고른다(앞쪽에 몰리면 후반이 밋밋해진다).
-    const picked = new Set<number>();
-    for (let k = 0; k < need; k++) {
-      const at = Math.round((k * (candidates.length - 1)) / Math.max(1, need - 1));
-      let j = at;
-      while (picked.has(j) && j < candidates.length) j++;
-      while (picked.has(j) && j >= 0) j--;
-      if (j >= 0 && j < candidates.length) picked.add(j);
-    }
-    for (const j of picked) {
-      const { sc } = candidates[j];
-      sc.visual = 'liveaction';
-      sc.clipSeconds = sc.clipSeconds ?? 4;
-      // 모델이 안 준 경우의 기본 움직임 — 시작 프레임을 살짝 밀고 들어가며 자연스러운 미동만.
-      sc.motion = sc.motion ?? 'slow push in, subtle natural movement, people and background moving gently';
-    }
-    console.log(`[대본] 실사 클립 ${already.length}개 → ${already.length + picked.size}개로 보정(목표 ${want}개)`);
+    console.log(
+      `[대본] 실사 배치: ${chosen.map((c) => `${c.beat}(${c.clipSeconds}초)`).join(' ')} = 총 ${spent}초 / 예산 ${budgetSec}초`,
+    );
     return { ...s, scenes };
   };
+  /** Veo 는 4·6·8 초만 받는다. 그 외 값이 오면 가장 가까운 허용값으로 맞춘다. */
+  const normalizeClip = (n: number): 4 | 6 | 8 => (n >= 7 ? 8 : n >= 5 ? 6 : 4);
 
   let script = dropEmptyScenes(await runOnceResilient(''));
-  if (useVeo) script = ensureLiveAction(script, veoClipCount);
+  // 예산은 초 단위 — 개수 × 길이. 클립을 8초로 늘려도 총 요금이 늘지 않게 한다.
+  if (useVeo) script = assignLiveAction(script, veoClipCount * config.veoClipSeconds);
   let chars = totalChars(script);
   console.log(`[대본] 나레이션 총 ${chars}자 / 목표 ${targetChars}자 (씬 ${script.scenes.length}개)`);
 

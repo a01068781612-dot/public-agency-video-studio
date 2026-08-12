@@ -77,10 +77,45 @@ export const CodeExampleSchema = z.object({
   code: z.string(), // 실제 화면에 보일 코드/설정 텍스트 (짧게, 8~14줄 이내)
 });
 
+/**
+ * 1분 홍보영상의 이야기 구조. 씬이 "어떤 역할"인지 코드가 알아야
+ * 실사 클립을 어디에 넣을지, 어떤 모션그래픽을 띄울지 정할 수 있다.
+ * (예전엔 역할을 몰라서 실사 클립을 그냥 균등 분배했다.)
+ */
+export const Beat = z.enum([
+  'hook', // 0~8초. 질문이나 놀라운 수치 하나로 스크롤을 멈춘다. 실사로 연다.
+  'context', // 왜 이 얘기가 나왔나. 숫자 카운트업이 어울린다.
+  'data', // 가장 중요한 수치. 순위/비교가 있으면 막대그래프.
+  'insight', // 그래서 뭘 뜻하나. 키워드 강조.
+  'action', // 기관이 한 일 / 정책. 불릿 3개.
+  'outro', // 한 줄 정리 + 기관 마크.
+]);
+
+/** 카운트업으로 보여줄 대표 수치 하나. */
+export const MetricSchema = z.object({
+  value: z.number(), // 숫자만 (예: 65743)
+  unit: z.string(), // 단위 (예: "명", "%", "억원")
+  label: z.string(), // 무엇의 수치인지 (예: "지난해 신규 입사 청년")
+});
+
+/** 막대그래프로 보여줄 순위 (2~4개). */
+export const RankingSchema = z
+  .array(z.object({ label: z.string(), value: z.number(), unit: z.string().default('') }))
+  .min(2)
+  .max(4);
+
 export const SceneSchema = z.object({
   id: z.string(),
+  // 이 씬이 이야기에서 맡은 역할. 실사 클립 배치와 모션그래픽 선택의 기준이 된다.
+  beat: Beat,
   heading: z.string(), // 화면 상단 짧은 제목
-  narration: z.string(), // 성우가 읽을 나레이션 (해당 언어)
+  // 성우가 읽을 나레이션. 강조할 핵심어는 【】로 감싼다 —
+  // 자막에서 그 부분만 색이 바뀐다(음성으로 읽을 때는 괄호를 떼고 읽는다).
+  narration: z.string(),
+  // beat="context" 에서 쓰는 대표 수치. 0에서 이 값까지 올라가는 카운트업으로 표시된다.
+  metric: MetricSchema.optional(),
+  // beat="data" 에서 쓰는 순위. 막대가 차례로 차오른다.
+  ranking: RankingSchema.optional(),
   bullets: z.array(z.string()).max(5).default([]),
   // AI 일러스트용 영어 시각 묘사. visual="illustration"/"liveaction" 씬에서는 필수
   // (이게 그림의 소재가 되고, liveaction 은 그 그림을 움직이게 만든다).
@@ -108,6 +143,18 @@ export const SceneSchema = z.object({
 });
 
 export type Scene = z.infer<typeof SceneSchema>;
+export type BeatKind = z.infer<typeof Beat>;
+
+/** 나레이션에서 강조 표시(【】)를 떼어낸 순수 텍스트 — TTS 에 넘길 때 쓴다. */
+export const stripEmphasis = (t: string) => t.replace(/[【】]/g, '');
+
+/** 나레이션을 강조 구간과 일반 구간으로 쪼갠다 — 자막이 색을 달리 칠하는 데 쓴다. */
+export function splitEmphasis(t: string): { text: string; strong: boolean }[] {
+  return t
+    .split(/(【[^】]*】)/)
+    .filter((p) => p !== '')
+    .map((p) => (p.startsWith('【') ? { text: p.slice(1, -1), strong: true } : { text: p, strong: false }));
+}
 
 export const ScriptSchema = z.object({
   title: z.string(), // 유튜브 영상 제목
