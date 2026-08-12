@@ -48,7 +48,26 @@ const RESEARCH_INSTRUCTIONS = [
   '반드시 web_search 도구를 실제로 호출해서 검색부터 하고, 검색 결과에 명시적으로 나온 내용만 답한다.',
   '검색 없이 너의 기억(학습 데이터)만으로 날짜·버전·수치·출시일을 답하는 것은 절대 금지다 — 기억은 틀릴 수 있고, 틀린 날짜를 자신있게 말하는 것보다 "확인 안 됨"이 훨씬 낫다.',
   '각 항목에는 근거가 된 출처(매체명 또는 URL)를 함께 표기한다. 출처를 댈 수 없는 항목은 아예 쓰지 않는다.',
+  // 검색 중간 멘트가 결과에 섞여 그대로 대본 참고자료로 들어간 적이 있다(사과문까지 자료로 취급됐다).
+  '최종 답변에는 사실 불릿만 출력한다. "검색해보겠습니다", "죄송합니다", "찾지 못했습니다" 같은 진행 상황·사과·자기 언급은 최종 답변에 절대 쓰지 않는다.',
+  '확인된 사실이 하나도 없으면 아무 말도 덧붙이지 말고 빈 답을 내라 — 변명을 적는 것보다 낫다.',
 ].join(' ');
+
+/**
+ * 리서치 결과에서 사실 불릿만 남긴다.
+ *
+ * Claude 웹서치는 검색을 여러 번 돌리는 동안 "추가 검색을 진행하겠습니다", "죄송합니다,
+ * 찾지 못했습니다" 같은 진행 멘트를 텍스트 블록으로 흘린다. 그게 그대로 대본 프롬프트의
+ * 참고자료로 들어가면 모델이 그 사과문까지 자료로 취급한다(실제로 그랬다).
+ */
+export function tidyResearch(text: string): string {
+  const lines = text.split('\n').map((l) => l.trim());
+  const bullets = lines.filter((l) => /^([-•*]|\d+[.)])\s+/.test(l));
+  const body = bullets.length >= 3 ? bullets : lines.filter((l) => l !== '');
+  // 검색 진행 상황·사과·자기언급 문장은 사실이 아니므로 버린다.
+  const META = /(죄송|검색을 (진행|해보|시도)|찾지 못|확인되지 않았습니다|다시 검색|추가 검색|정리하겠습니다|답변드리겠습니다)/;
+  return body.filter((l) => !META.test(l)).join('\n').trim();
+}
 
 function researchPrompt(dateLabel: string, query: string): string {
   return [
@@ -120,8 +139,9 @@ async function researchWithClaude(params: { dateLabel: string; topic?: string; k
       .map((b) => b.text)
       .join('\n')
       .trim();
-    console.log(`  · 리서치(Claude) 결과 ${text.length}자 — 미리보기: ${text.slice(0, 120).replace(/\n/g, ' ')}...`);
-    return text;
+    const clean = tidyResearch(text);
+    console.log(`  · 리서치(Claude) 결과 ${clean.length}자 — 미리보기: ${clean.slice(0, 120).replace(/\n/g, ' ')}...`);
+    return clean;
   } catch (e) {
     console.warn('  · 리서치(Claude 웹서치) 실패(무시, 리서치 없이 진행):', (e as Error).message);
     return '';

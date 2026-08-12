@@ -118,7 +118,9 @@ export const ScriptSchema = z.object({
   thumbnailHeadline: z.string(),
   // 문구를 짧게 쓰는 대신 "무엇에 대한 영상인지"를 남기는 구석 배지 (제품·회사명). 없으면 배지 생략.
   thumbnailBadge: z.string().optional().default(''),
-  scenes: z.array(SceneSchema).min(6),
+  // 최소 3 — 예전엔 6이었는데, 1분짜리는 5씬이면 충분해서 모델이 빈 씬으로 자리를 채웠다.
+  // 빈 씬은 화면이 비는 데다 liveaction 으로 잡히면 Veo 클립까지 생성돼 돈이 샌다.
+  scenes: z.array(SceneSchema).min(3),
 });
 
 export type Script = z.infer<typeof ScriptSchema>;
