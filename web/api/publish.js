@@ -44,7 +44,9 @@ export default async function handler(req, res) {
     });
   }
 
-  const willResearch = String(body.topic || '').trim() !== '' || body.mode === 'trend';
+  // 자료를 직접 붙여넣었으면 웹서치를 건너뛴다 — 견적과 실제 실행이 같은 판단을 써야 한다.
+  const skipResearch = truthyFlag(body.skipResearch);
+  const willResearch = !skipResearch && (String(body.topic || '').trim() !== '' || body.mode === 'trend');
   // 실사 클립은 필수 구성이라, 값이 안 오면(캐시된 옛 화면 등) 서버 기본값(켜짐)을 따른다.
   // false 로 떨어뜨리면 견적은 Veo 없이 내고 파이프라인은 Veo 를 돌려 상한 검사가 헛돈다.
   const wantsVeo = body.veo === undefined ? VEO.enabled : truthyFlag(body.veo);
@@ -128,6 +130,8 @@ export default async function handler(req, res) {
     preview_only: previewOnly ? 'true' : 'false',
     // 미리보기 실행 ID — 그 실행의 대본을 이어받아 나머지만 만든다.
     resume_run_id: resumeRunId,
+    // 웹서치 생략 (기사 원문을 직접 붙여넣은 경우).
+    skip_research: skipResearch ? 'true' : 'false',
   };
   const client_payload = { cfg };
 
@@ -136,7 +140,7 @@ export default async function handler(req, res) {
     'topic', 'mode', 'content_mode', 'level', 'content_level', 'upload', 'do_upload',
     'minutes', 'target_minutes', 'channel', 'privacy', 'style', 'speed', 'narration_speed', 'password',
     'art', 'art_style', 'tone', 'narration_tone', 'agency', 'aspect', 'veo',
-    'preview', 'resumeRun',
+    'preview', 'resumeRun', 'skipResearch',
   ]);
   const ignored = Object.keys(body).filter((k) => !KNOWN.has(k));
 

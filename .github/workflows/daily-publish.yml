@@ -52,6 +52,10 @@ on:
         description: 'Veo 실사 클립 사용 (true | false). 켜면 회당 비용이 크게 오름'
         required: false
         default: ''
+      skip_research:
+        description: '웹 검색 생략 (true). 기사·보도자료 원문을 주제란에 직접 붙여넣었을 때'
+        required: false
+        default: ''
       preview_only:
         description: '대본만 만들고 멈춤 (true). 나레이션·이미지·실사·업로드를 건너뛰어 약 130원만 쓴다'
         required: false
@@ -127,6 +131,8 @@ jobs:
       OPENAI_IMAGE_MODEL: ${{ vars.OPENAI_IMAGE_MODEL || 'gpt-image-2' }}
       OPENAI_ILLUSTRATION_MODEL: ${{ vars.OPENAI_ILLUSTRATION_MODEL || 'gpt-image-1-mini' }}
       # 대본 전 최신정보 웹서치 담당: openai(기본, 저비용) | anthropic(Claude 웹서치 폴백).
+      # 자료 직접 입력 모드 — 기사 원문을 붙여넣었을 때 웹서치를 건너뛴다(시간·요금 절약).
+      SKIP_RESEARCH: ${{ github.event.inputs.skip_research || github.event.client_payload.cfg.skip_research || 'false' }}
       RESEARCH_PROVIDER: ${{ vars.RESEARCH_PROVIDER || 'openai' }}
       OPENAI_RESEARCH_MODEL: ${{ vars.OPENAI_RESEARCH_MODEL || 'gpt-4.1-mini' }}
       PRESENTER_IMAGE_URL: ${{ secrets.PRESENTER_IMAGE_URL || vars.PRESENTER_IMAGE_URL || '' }}

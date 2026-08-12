@@ -164,6 +164,9 @@ export const config = {
   // 대본 전 최신정보 리서치(웹서치) 담당 provider: openai(기본, 저비용) | anthropic(Claude 웹서치).
   // 검색은 대본 작성만큼 비싼 모델이 필요 없는 작업이라 기본은 OpenAI 로 비용을 아낀다.
   researchProvider: optional('RESEARCH_PROVIDER', 'openai').toLowerCase(),
+  // 기사·보도자료 원문을 직접 붙여넣었을 때 켠다. 웹서치를 통째로 건너뛰어
+  // 검색 결과가 원문과 섞이는 것을 막고, 시간(약 20초)과 요금(약 102원)을 아낀다.
+  skipResearch: optional('SKIP_RESEARCH', 'false').toLowerCase() === 'true',
   openaiResearchModel: optional('OPENAI_RESEARCH_MODEL', 'gpt-4.1-mini'),
 
   // 영상 엔진(=화면 스타일):

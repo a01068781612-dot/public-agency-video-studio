@@ -91,7 +91,11 @@ async function stepScript(): Promise<Script> {
   const customTopic = config.customTopic || undefined;
   const isBriefTopic = Boolean(customTopic) && (customTopic!.length > 120 || /\n/.test(customTopic!));
   let research: string | undefined;
-  if (customTopic || mode === 'trend') {
+  if (config.skipResearch) {
+    // 사용자가 기사·보도자료 원문을 직접 붙여넣은 경우. 검색으로 보강할 게 없고,
+    // 오히려 검색 결과가 원문과 섞여 사실관계가 흐려진다. 시간과 요금도 아낀다.
+    console.log('  · 웹서치 생략 (자료 직접 입력 모드) — 붙여넣은 내용만으로 대본을 씁니다');
+  } else if (customTopic || mode === 'trend') {
     // 주제 지정/트렌드 모드: 그 주제의 최신 소식을 조사. 대상기관이 있고 주제가 없으면
     // 그 기관이 실제로 벌인 AI 관련 사업·정책까지 검색어에 넣는다 — 도메인 일반론보다
     // "이 기관이 진짜로 한 일"이 나오면 보도자료에 그대로 쓸 수 있어 훨씬 값지다.
@@ -108,6 +112,8 @@ async function stepScript(): Promise<Script> {
   }
   if (research) {
     console.log(`  · 리서치 완료 (${research.length}자)`);
+  } else if (config.skipResearch) {
+    /* 의도적으로 건너뛴 것이므로 경고하지 않는다 */
   } else if (customTopic) {
     // 지정 주제인데 검색이 비었다 = 사실관계를 모른 채 대본을 쓰게 된다는 뜻이라 눈에 띄게 경고한다.
     console.warn('  ⚠ 리서치 실패/결과 없음 — 지정한 주제의 사실관계를 확인하지 못했습니다. 대본이 일반론 위주로 나올 수 있습니다.');
