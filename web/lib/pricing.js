@@ -4,9 +4,10 @@
 // 단가는 계정 요금제마다 다르므로 환경변수로 받는다. 아래 기본값은 공개 정가 기준의
 // "대략치"이므로, 정확한 금액이 필요하면 Vercel 환경변수로 실제 단가를 넣어야 한다.
 export const PRICE = {
-  // Claude Opus 4.8 — 100만 토큰당 달러
-  claudeIn: Number(process.env.PRICE_CLAUDE_IN || 5),
-  claudeOut: Number(process.env.PRICE_CLAUDE_OUT || 25),
+  // Claude Haiku 4.5 (CLAUDE_MODEL 기본값) — 100만 토큰당 달러.
+  // 모델을 바꾸면 여기도 같이 바꿔야 견적이 맞는다: Opus 5/4.8 은 5/25, Sonnet 5 는 2/10.
+  claudeIn: Number(process.env.PRICE_CLAUDE_IN || 1),
+  claudeOut: Number(process.env.PRICE_CLAUDE_OUT || 5),
   // 리서치용 저가 모델 — 100만 토큰당 달러
   openaiIn: Number(process.env.PRICE_OPENAI_IN || 0.4),
   openaiOut: Number(process.env.PRICE_OPENAI_OUT || 1.6),
@@ -35,7 +36,9 @@ export const LIMITS = {
   // 유료 실행 전면 차단 스위치(비상정지).
   spendEnabled: String(process.env.SPEND_ENABLED || 'true').toLowerCase() !== 'false',
   // 실행 1회 예상 비용 상한(원). 견적이 이보다 크면 트리거를 거부한다.
-  perRunKrw: Number(process.env.LIMIT_PER_RUN_KRW || 1500),
+  // Veo 를 켠 1분 영상의 견적이 약 2,400원이라 상한이 1,500원이면 항상 거부된다 —
+  // 실비에 약간의 여유만 얹어 3,000원으로 둔다(오차로 막히지 않을 만큼만).
+  perRunKrw: Number(process.env.LIMIT_PER_RUN_KRW || 3000),
   // 하루 누적 사용액 상한(원). 오늘 이미 이만큼 썼으면 더 실행하지 않는다.
   perDayKrw: Number(process.env.LIMIT_PER_DAY_KRW || 5000),
 };
