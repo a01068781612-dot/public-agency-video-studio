@@ -16,6 +16,7 @@ export type UsageKind =
   | 'openai-image'
   | 'gemini-image'
   | 'elevenlabs'
+  | 'gemini-tts'
   | 'veo-video';
 
 export interface UsageEntry {

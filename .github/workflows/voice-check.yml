@@ -1,0 +1,37 @@
+name: 나레이션 목소리 시청
+
+# Gemini TTS 음성 30종 중 무엇을 쓸지 실제로 들어보고 고르기 위한 도구.
+# 영상은 만들지 않는다 — 짧은 문장 하나를 여러 음성으로 읽혀 wav 아티팩트로 올릴 뿐이다.
+on:
+  workflow_dispatch:
+    inputs:
+      text:
+        description: '읽힐 문장 (짧게 — 음성 수만큼 요금이 붙는다)'
+        required: false
+        default: '고용노동부가 청년 일자리 지원 대책을 발표했습니다. 지난해 신규 입사한 청년 6만 5천여 명이 대상입니다.'
+      voices:
+        description: '쉼표로 구분한 음성 이름 (예: Kore,Puck,Aoede,Charon)'
+        required: false
+        default: 'Kore,Aoede,Leda'
+
+jobs:
+  sample:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      GEMINI_TTS_MODEL: ${{ vars.GEMINI_TTS_MODEL || 'gemini-2.5-flash-preview-tts' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+      - run: npm ci
+      - name: 샘플 생성
+        run: node scripts/tts-sample.mjs "${{ github.event.inputs.text }}" "${{ github.event.inputs.voices }}"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: voice-samples
+          path: out/voices/*.wav
+          retention-days: 7

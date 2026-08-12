@@ -25,7 +25,9 @@ export const ASSETS_DIR = path.join(ROOT, 'assets');
 export const PRESENTER_IMAGE_PATH = path.join(ASSETS_DIR, 'presenter.png');
 
 /** staticFile() 로 참조할 오디오 상대경로 (public 기준). */
-export const audioStaticPath = (sceneId: string) => `audio/${sceneId}.mp3`;
+// 확장자는 TTS provider 에 따라 다르다(ElevenLabs=mp3, Gemini=wav).
+// 매니페스트에 실리는 경로라 실제로 만든 파일과 어긋나면 렌더에서 오디오가 통째로 빠진다.
+export const audioStaticPath = (sceneId: string, ext = 'mp3') => `audio/${sceneId}.${ext}`;
 
 /** 영상 규격 (10분 영상 렌더 부담을 줄이기 위해 24fps — 부드러움 충분) */
 export const FPS = 24;
@@ -83,6 +85,15 @@ export const config = {
   // 영상 1편의 Claude 비용이 659원 → 132원으로 떨어진다.
   // 세대가 낮아 adaptive thinking / 웹서치 동적 필터링을 못 쓰므로 src/lib/claudeCaps.ts 가 대신 분기한다.
   claudeModel: optional('CLAUDE_MODEL', 'claude-haiku-4-5-20251001'),
+
+  // ── 나레이션 provider ── gemini(기본) | elevenlabs
+  // ElevenLabs 무료 요금제는 라이브러리 음성을 API 로 쓸 수 없어서(402) 한국어 원어민
+  // 목소리를 낼 수가 없다. Gemini TTS 는 한국어를 지원하고 이미 있는 키를 그대로 쓴다.
+  ttsProvider: optional('TTS_PROVIDER', 'gemini').toLowerCase(),
+  // preview 모델이라 ID 가 바뀔 수 있어 환경변수로 뺀다(Veo 와 같은 이유).
+  geminiTtsModel: optional('GEMINI_TTS_MODEL', 'gemini-2.5-flash-preview-tts'),
+  // 30종 중 하나. Kore=차분하고 단단한 여성 톤 — 보도·홍보 나레이션에 무난하다.
+  geminiTtsVoice: optional('GEMINI_TTS_VOICE', 'Kore'),
 
   // ElevenLabs
   elevenLabsApiKey: () => required('ELEVENLABS_API_KEY'),

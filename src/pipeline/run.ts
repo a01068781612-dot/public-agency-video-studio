@@ -26,7 +26,7 @@ import { generateScript } from '../lib/anthropic.js';
 import { resolveAgency } from '../lib/agency.js';
 import { generateDeck } from '../lib/deckgen.js';
 import { researchRecentInfo } from '../lib/research.js';
-import { synthesizeSpeech } from '../lib/elevenlabs.js';
+import { synthesizeSpeech, audioExt } from '../lib/tts.js';
 import { generateBgm } from '../lib/bgm.js';
 import { renderVideo } from '../lib/render.js';
 import { generateIllustrations } from '../lib/illustrate.js';
@@ -175,12 +175,13 @@ async function stepVoice(): Promise<RenderManifest | null> {
   const scenes: SceneWithAudio[] = [];
   let startFrame = 0;
   for (const [i, scene] of script.scenes.entries()) {
-    const outPath = `${AUDIO_DIR}/${scene.id}.mp3`;
+    const ext = audioExt();
+    const outPath = `${AUDIO_DIR}/${scene.id}.${ext}`;
     const { durationSec } = await synthesizeSpeech({ text: scene.narration, outPath });
     const durationInFrames = Math.ceil(durationSec * FPS) + TAIL_PAD_FRAMES;
     scenes.push({
       ...scene,
-      audioPath: audioStaticPath(scene.id),
+      audioPath: audioStaticPath(scene.id, ext),
       durationSec,
       startFrame,
       durationInFrames,
