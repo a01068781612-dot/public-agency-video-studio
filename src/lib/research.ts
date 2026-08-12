@@ -1,6 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import OpenAI from 'openai';
 import { config } from '../config.js';
+import { thinkingParam, webSearchTool } from './claudeCaps.js';
 import { recordUsage } from './usage.js';
 
 /**
@@ -93,6 +94,8 @@ async function researchWithOpenAI(params: { dateLabel: string; topic?: string; k
  * 400 "this tool only allows calls from ['code_execution_...']" 로 매번 실패했다.
  * (그 탓에 리서치가 항상 조용히 빈 값으로 떨어져 대본이 검색 없이 쓰이고 있었다.)
  * 대신 시스템 프롬프트에서 "반드시 검색부터 하라"고 강하게 지시한다.
+ *
+ * 툴 정의와 thinking 은 모델 세대를 타므로 claudeCaps 에서 만들어 쓴다(같은 400 을 다시 밟지 않기 위해).
  */
 async function researchWithClaude(params: { dateLabel: string; topic?: string; kind?: 'topic' | 'landscape' }): Promise<string> {
   const { dateLabel, topic, kind } = params;
@@ -101,9 +104,10 @@ async function researchWithClaude(params: { dateLabel: string; topic?: string; k
   try {
     const res = await client.messages.create({
       model: config.claudeModel,
-      max_tokens: 4000,
-      thinking: { type: 'adaptive' },
-      tools: [{ type: 'web_search_20260209', name: 'web_search', max_uses: 6 }],
+      // 사고 예산(구세대 모델은 3000)을 포함한 값이라, 정리본 2000~2500 토큰이 잘리지 않게 넉넉히 잡는다.
+      max_tokens: 8000,
+      thinking: thinkingParam(3000),
+      tools: [webSearchTool(6)],
       system: RESEARCH_INSTRUCTIONS,
       messages: [{ role: 'user', content: researchPrompt(dateLabel, query) }],
     });

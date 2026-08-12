@@ -1,6 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { config } from '../config.js';
 import { recordUsage } from './usage.js';
+import { thinkingParam } from './claudeCaps.js';
 import { buildToneGuide, resolveTone } from './tone.js';
 
 /**
@@ -179,9 +180,9 @@ export async function generateDeck(params: {
   const stream = client.messages.stream({
     model: config.claudeModel,
     // 사고(thinking) 토큰도 이 예산을 함께 쓴다 — 32000 이면 긴 리서치 + 20여 장 슬라이드에서
-    // JSON 이 중간에 잘려 파싱이 깨진다. Opus 4.8 은 최대 128K 출력.
+    // JSON 이 중간에 잘려 파싱이 깨진다. 64000 은 Haiku 4.5 의 출력 상한이기도 하다.
     max_tokens: 64000,
-    thinking: { type: 'adaptive' },
+    thinking: thinkingParam(16000),
     system,
     messages: [{ role: 'user', content: user }],
   });

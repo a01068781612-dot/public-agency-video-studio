@@ -79,7 +79,10 @@ export const config = {
   targetChannel: TARGET_CHANNEL,
   // Anthropic
   anthropicApiKey: () => required('ANTHROPIC_API_KEY'),
-  claudeModel: optional('CLAUDE_MODEL', 'claude-opus-4-8'),
+  // 리서치·대본 양쪽에 쓰인다. Haiku 4.5 는 Opus 4.8 대비 입력 1/5·출력 1/5 가격이라
+  // 영상 1편의 Claude 비용이 659원 → 132원으로 떨어진다.
+  // 세대가 낮아 adaptive thinking / 웹서치 동적 필터링을 못 쓰므로 src/lib/claudeCaps.ts 가 대신 분기한다.
+  claudeModel: optional('CLAUDE_MODEL', 'claude-haiku-4-5-20251001'),
 
   // ElevenLabs
   elevenLabsApiKey: () => required('ELEVENLABS_API_KEY'),

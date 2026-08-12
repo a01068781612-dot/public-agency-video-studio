@@ -3,6 +3,7 @@ import { zodOutputFormat } from '@anthropic-ai/sdk/helpers/zod';
 import { config } from '../config.js';
 import { ScriptSchema, type Script } from '../schema.js';
 import { recordUsage } from './usage.js';
+import { thinkingParam } from './claudeCaps.js';
 import { buildToneGuide, resolveTone } from './tone.js';
 import { resolveArtStyle } from './artStyle.js';
 import { resolveAgency, buildAgencyGuide } from './agency.js';
@@ -202,9 +203,11 @@ export async function generateScript(params: {
       model: config.claudeModel,
       // 사고(thinking) 토큰도 이 예산을 함께 쓴다. 32000 이면 긴 브리핑 + 30여 개 씬을 쓰다가
       // JSON 이 중간에서 잘려("Unterminated string in JSON") 파이프라인 전체가 죽었다.
-      // Opus 4.8 은 최대 128K 출력이라 넉넉히 잡아 둔다.
+      // 64000 은 Haiku 4.5 의 출력 상한이기도 하다(Opus 계열은 128K 라 더 여유가 있다).
       max_tokens: 64000,
-      thinking: { type: 'adaptive' },
+      // 구세대 모델에서는 사고 예산이 max_tokens 를 나눠 쓰므로, JSON 이 잘리지 않게
+      // 16000 만 사고에 주고 나머지 48000 을 대본 출력에 남긴다.
+      thinking: thinkingParam(16000),
       output_config: { format: zodOutputFormat(ScriptSchema) },
       system,
       messages,
