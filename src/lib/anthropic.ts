@@ -270,40 +270,87 @@ export async function generateScript(params: {
     return dropped > 0 ? { ...s, scenes: kept } : s;
   };
 
+  /** 문장 단위로 자른다. 한국어 나레이션은 마침표로 끝나므로 문장 경계가 안전한 절단면이다. */
+  const sentences = (t: string) => t.split(/(?<=[.!?…])\s+/).filter((s) => s.trim() !== '');
+
+  /**
+   * 총 글자 수를 상한 이하로 강제한다.
+   *
+   * 모델에게 "더 짧게 다시 써라"고 시켜봤지만 두 번 연속 오히려 더 길게 써 왔다
+   * (334→365, 388→464). 60초 제한은 협상 대상이 아니므로 코드로 확정한다.
+   * 가장 긴 씬의 마지막 문장부터 하나씩 떼어내, 문장이 중간에 끊기지 않게 한다.
+   */
+  const enforceLengthCap = (s: Script, cap: number): Script => {
+    if (totalChars(s) <= cap) return s;
+    const before = totalChars(s);
+    const scenes = s.scenes.map((sc) => ({ ...sc }));
+
+    // 안전장치: 뗄 게 없으면 무한 루프가 되므로 반복 횟수를 씬당 문장 수 합만큼으로 제한한다.
+    for (let guard = 0; totalChars({ ...s, scenes }) > cap && guard < 200; guard++) {
+      // 문장이 2개 이상 남은 씬 중 가장 긴 것에서 마지막 문장을 뗀다.
+      let idx = -1, longest = -1;
+      for (let i = 0; i < scenes.length; i++) {
+        const parts = sentences(scenes[i].narration ?? '');
+        if (parts.length >= 2 && (scenes[i].narration ?? '').length > longest) {
+          longest = (scenes[i].narration ?? '').length;
+          idx = i;
+        }
+      }
+      if (idx >= 0) {
+        const parts = sentences(scenes[idx].narration);
+        parts.pop();
+        scenes[idx].narration = parts.join(' ').trim();
+        continue;
+      }
+      // 모든 씬이 한 문장뿐이다 → 가장 긴 씬을 통째로 뺀다(표지·마무리는 남긴다).
+      if (scenes.length > 3) {
+        let li = 1;
+        for (let i = 1; i < scenes.length - 1; i++) {
+          if ((scenes[i].narration ?? '').length > (scenes[li].narration ?? '').length) li = i;
+        }
+        scenes.splice(li, 1);
+        continue;
+      }
+      break; // 더 줄일 수 없다
+    }
+    const kept = scenes.filter((sc) => (sc.narration ?? '').trim() !== '');
+    const after = kept.reduce((sum, sc) => sum + sc.narration.length, 0);
+    console.log(`[대본] 분량 강제 조정: ${before}자 → ${after}자 (한도 ${cap}자, ${s.scenes.length}씬 → ${kept.length}씬)`);
+    return { ...s, scenes: kept };
+  };
+
   let script = dropEmptyScenes(await runOnceResilient(''));
   let chars = totalChars(script);
   console.log(`[대본] 나레이션 총 ${chars}자 / 목표 ${targetChars}자 (씬 ${script.scenes.length}개)`);
 
-  // 분량 미달(목표의 70% 미만) 방지 — 모델이 "짧게" 지침에 과반응해 총량을 놓치는 흔한 실패를
-  // 한 번의 재생성으로 교정한다. 더 긴 쪽을 채택(재생성이 오히려 짧으면 첫 결과를 유지).
-  // 상한 모드(1분 이하)는 "넘친" 경우를, 그 외에는 "모자란" 경우를 교정한다 — 방향이 정반대다.
-  // 상한 모드에서 예전 로직을 그대로 두면 오히려 더 길게 다시 쓰게 만들어 길이 제한을 깬다.
-  // 재생성 기준은 목표치가 아니라 "실제로 60초를 넘는가"다. 목표 330자에 4자 넘겼다고
-  // 대본을 통째로 다시 쓰면 70초와 28원을 더 쓰고도 0.7초를 줄이는 셈이라 남는 게 없다.
-  // 초당 5.6자(실측)로 환산한 한도까지는 그대로 채택한다.
+  // 초당 5.6자(실측)로 환산한 진짜 상한. 목표치(targetChars)는 모델에게 주는 안내값이고,
+  // 이건 넘으면 안 되는 선이다 — 1분 영상이면 336자 = 60초.
   const hardCapChars = Math.round(targetMinutes * 60 * 5.6);
-  const tooLong = isCapped && chars > hardCapChars;
-  const tooShort = !isCapped && chars < targetChars * 0.82;
-  if (tooLong || tooShort) {
-    console.log(
-      tooLong
-        ? `[대본] 분량 초과(${chars}자 > 한도 ${hardCapChars}자) → 더 짧게 재생성 시도`
-        : `[대본] 분량 미달 → 더 길게 재생성 시도`,
-    );
+
+  if (isCapped) {
+    // 상한 초과는 모델에게 다시 시키지 않고 코드로 자른다.
+    // "더 짧게 써라"는 지시가 두 번 연속 더 긴 결과를 낳았고(334→365, 388→464),
+    // 그때마다 재생성에 75초와 28원이 그냥 버려졌다. 자르는 편이 빠르고 확실하다.
+    if (chars > hardCapChars) {
+      console.log(`[대본] 분량 초과(${chars}자 > 한도 ${hardCapChars}자) → 문장 단위로 잘라 맞춤`);
+      script = enforceLengthCap(script, hardCapChars);
+      chars = totalChars(script);
+    }
+    return script;
+  }
+
+  // 긴 영상(1분 초과)은 반대로 "모자란" 게 문제다 — 모델이 "짧게" 지침에 과반응해 총량을
+  // 놓치는 흔한 실패를 한 번의 재생성으로 교정한다. 더 긴 쪽을 채택한다.
+  if (chars < targetChars * 0.82) {
+    console.log('[대본] 분량 미달 → 더 길게 재생성 시도');
     try {
       const retry = await runOnceResilient(
-        tooLong
-          ? `\n\n[중요·재작성 지시] 직전 시도가 총 ${chars}자로 상한(${targetChars}자)을 넘겼다. 이대로면 영상이 길이 제한을 초과한다. 씬 수를 ${sceneMin}~${sceneMax}개로 유지하되 각 씬 나레이션을 더 짧게 줄여서 총 ${targetChars}자 이하로 다시 써라. 내용을 덜 담더라도 분량을 반드시 지켜라.`
-          : `\n\n[중요·재작성 지시] 직전 시도가 총 ${chars}자로 목표(${targetChars}자)의 절반 수준밖에 안 돼 영상이 너무 짧다. 이번엔 씬 수를 ${sceneMax}개 이상으로 늘리고 각 씬 나레이션을 2~4문장(120~200자)으로 충분히 써서 총 ${targetChars}자 이상을 반드시 채워라. (quote 씬만 짧게.)`,
+        `\n\n[중요·재작성 지시] 직전 시도가 총 ${chars}자로 목표(${targetChars}자)의 절반 수준밖에 안 돼 영상이 너무 짧다. 이번엔 씬 수를 ${sceneMax}개 이상으로 늘리고 각 씬 나레이션을 2~4문장(120~200자)으로 충분히 써서 총 ${targetChars}자 이상을 반드시 채워라. (quote 씬만 짧게.)`,
       );
       const cleaned = dropEmptyScenes(retry);
       const retryChars = totalChars(cleaned);
       console.log(`[대본] 재생성 결과 총 ${retryChars}자 (씬 ${cleaned.scenes.length}개)`);
-      // 상한 모드면 "더 짧아졌을 때", 그 외엔 "더 길어졌을 때"만 채택한다.
-      if (tooLong ? retryChars < chars : retryChars > chars) {
-        script = cleaned;
-        chars = retryChars;
-      }
+      if (retryChars > chars) script = cleaned;
     } catch (e) {
       console.warn('[대본] 재생성 실패, 첫 결과 유지:', e instanceof Error ? e.message : e);
     }
