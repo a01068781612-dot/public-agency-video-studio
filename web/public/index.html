@@ -46,10 +46,20 @@
       .topic { font-size: 18px; min-height: 120px; line-height: 1.5; resize: vertical; }
       .row { display: flex; flex-wrap: wrap; gap: 12px; }
       .row > div { flex: 1 1 130px; min-width: 130px; }
+      /* 견적은 [견적 표시]를 눌러야 나온다 — 선택을 바꾸면 다시 숨겨져, 낡은 금액을 보고
+         [만들기]를 누르는 일이 없게 한다. */
       .est {
-        margin-top: 18px; padding: 14px 16px; border-radius: 12px;
+        display: none; margin-top: 18px; padding: 14px 16px; border-radius: 12px;
         background: #10141d; border: 1px solid var(--line);
       }
+      .est.show { display: block; }
+      button.est-btn {
+        width: 100%; margin-top: 20px; padding: 14px; font-size: 16px; font-weight: 700;
+        background: #141824; color: var(--ink); border: 1px solid var(--accent2);
+        border-radius: 14px; cursor: pointer; font-family: inherit; transition: transform .05s;
+      }
+      button.est-btn:active { transform: scale(0.99); }
+      button.est-btn:disabled { opacity: 0.5; cursor: not-allowed; }
       .est-row { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
       .est-label { font-size: 13px; color: var(--sub); }
       .est-amt { font-size: 20px; font-weight: 800; color: var(--ink); }
@@ -298,8 +308,11 @@
           <label for="upload" style="margin: 0">완성되면 <b>유튜브에 바로 전체공개</b>로 발행 — 확인 절차 없음 · 끄면 렌더만</label>
         </div>
 
-        <!-- 주제·보기 선택 → 견적 확인 → [만들기] → 비밀번호 → 실행.
-             비밀번호를 마지막 단계에 두어, 금액을 본 뒤 한 번 더 확인하고 넘어가게 한다. -->
+        <!-- 주제·보기 선택 → [견적 표시] → 금액 확인 → [만들기] → 비밀번호 → 실행.
+             견적을 눌러 본 뒤에만 만들 수 있게 해서, 금액을 모르고 실행하는 경우를 없앤다.
+             비밀번호는 마지막에 둬서 금액을 본 뒤 한 번 더 확인하고 넘어가게 한다. -->
+        <button id="estBtn" class="est-btn">💰 견적 표시</button>
+
         <div class="est" id="est">
           <div class="est-row">
             <span class="est-label">이번 실행 예상 비용</span>
@@ -308,7 +321,7 @@
           <div class="est-sub" id="estSub"></div>
         </div>
 
-        <button id="go" class="go">🚀 만들기</button>
+        <button id="go" class="go" disabled>🚀 만들기</button>
 
         <!-- 만들기를 누르면 열리는 최종 확인 단계 -->
         <div id="confirm" class="confirm">
@@ -390,13 +403,19 @@
       };
 
       // ── 실행 전 예상 비용 ──
-      // 누르기 전에 얼마 나올지 보여준다. 길이·모드·주제 유무에 따라 달라지므로 바뀔 때마다 갱신.
+      // [견적 표시]를 눌렀을 때만 계산한다. 예전엔 입력이 바뀔 때마다 자동 갱신했는데,
+      // 금액이 조용히 바뀌어서 "얼마인지 확인하고 눌렀다"는 감각이 없었다.
       // (웹서치 리서치는 주제를 지정했거나 트렌드 모드일 때만 돌고, 그게 비용의 큰 몫이다.)
-      let estTimer = null;
       async function refreshEstimate() {
         const minutes = TARGET_MINUTES;
         const willResearch = $('topic').value.trim() !== '' || $('mode').value === 'trend';
         const useVeo = $('veo').checked;
+        const btn = $('estBtn');
+        btn.disabled = true;
+        btn.textContent = '계산 중…';
+        $('est').classList.add('show');
+        $('estAmt').textContent = '계산 중…';
+        $('estSub').textContent = '';
         try {
           const r = await fetch(`/api/estimate?minutes=${minutes}&research=${willResearch}&veo=${useVeo}`);
           const d = await r.json();
@@ -416,30 +435,46 @@
             : '';
           $('estSub').textContent = `${minutes}분 · ${parts.join(' · ')} — ${d.note}${warn}`;
           lastEstimate = d;
+          // 상한을 넘으면 어차피 서버가 막으므로, 여기서도 [만들기]를 열어주지 않는다.
+          $('go').disabled = over;
         } catch (e) {
           $('estAmt').textContent = '—';
           $('estSub').textContent = '예상 비용을 계산하지 못했어요: ' + e.message;
           lastEstimate = null;
+          $('go').disabled = true;
+        } finally {
+          $('estBtn').disabled = false;
+          $('estBtn').textContent = '💰 견적 다시 계산';
         }
       }
       let lastEstimate = null;
       const fmtUsd = (n) => (n ? '$' + n.toFixed(2) : '$0');
-      const scheduleEstimate = () => {
-        clearTimeout(estTimer);
-        estTimer = setTimeout(refreshEstimate, 300); // 타이핑 중 연타 방지
-      };
-      $('mode').addEventListener('change', refreshEstimate);
-      $('topic').addEventListener('input', scheduleEstimate);
-      $('veo').addEventListener('change', refreshEstimate);
-      refreshEstimate();
+
+      // 선택을 바꾸면 이전 견적은 더 이상 맞지 않는다 — 감추고 [만들기]를 다시 잠근다.
+      function invalidateEstimate() {
+        if (!lastEstimate) return;
+        lastEstimate = null;
+        $('est').classList.remove('show');
+        $('go').disabled = true;
+        $('estBtn').textContent = '💰 견적 표시';
+        closeConfirm();
+      }
+      for (const id of ['topic', 'agency', 'mode', 'level', 'aspect', 'veo', 'upload']) {
+        $(id).addEventListener(id === 'topic' ? 'input' : 'change', invalidateEstimate);
+      }
+      $('estBtn').addEventListener('click', refreshEstimate);
 
       // ── 만들기 → 비밀번호 확인 → 실행 ──
       // 견적을 본 뒤 [만들기]를 누르면 확인 단계가 열리고, 거기서 비밀번호를 넣어야 실제로 돈이 나간다.
       let cooling = false;
       function openConfirm() {
         if (cooling) return;
-        const amt = lastEstimate ? `약 ${lastEstimate.krw.toLocaleString()}원이 청구됩니다.` : '예상 비용을 계산하지 못했습니다.';
-        $('confirmAmt').textContent = amt;
+        // 견적을 보지 않고는 여기까지 올 수 없다([만들기]가 잠겨 있다). 방어적으로 한 번 더 막는다.
+        if (!lastEstimate) {
+          toast('먼저 [견적 표시]를 눌러 예상 비용을 확인해 주세요.', 'err');
+          return;
+        }
+        $('confirmAmt').textContent = `약 ${lastEstimate.krw.toLocaleString()}원이 청구됩니다.`;
         $('confirm').classList.add('show');
         $('pw').focus();
         syncConfirmBtn();
@@ -776,12 +811,14 @@
       $('btnRevideo').addEventListener('click', () => {
         if (!confirm('영상을 다시 만들까요? 새 미리보기가 생성됩니다(이전 미등록 영상은 유튜브 스튜디오에서 지우면 됩니다).')) return;
         $('review').classList.remove('show');
-        publish();
+        openConfirm(); // 다시 만드는 것도 돈이 나가므로 비밀번호 단계를 거친다
       });
 
-      $('go').addEventListener('click', publish);
-      // 여러 줄 입력이므로 Enter 는 줄바꿈, Ctrl/Cmd+Enter 로 발행.
-      $('topic').addEventListener('keydown', (e) => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) publish(); });
+      // 여러 줄 입력이므로 Enter 는 줄바꿈, Ctrl/Cmd+Enter 는 견적 계산까지만 한다.
+      // (예전엔 여기서 바로 publish() 를 불러 견적·비밀번호 단계를 건너뛰었다.)
+      $('topic').addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) refreshEstimate();
+      });
       // 누적 비용 — 실행마다 남긴 사용량 아티팩트를 합산해 보여준다.
       async function loadCost() {
         try {
