@@ -20,6 +20,11 @@ export const IMG_DIR = path.join(PUBLIC_DIR, 'img');
 export async function generateIllustrations(
   scenes: { id: string; illustration?: string; heading: string }[],
   dark = false,
+  /**
+   * 이 영상 전체의 맥락(주제·대상기관). 씬 묘사만으로는 어느 나라 무슨 현장인지 알 수 없어
+   * 주제에서 벗어난 그림이 나온다 — 그림이 어긋나면 그 그림으로 만드는 실사 클립까지 함께 어긋난다.
+   */
+  context?: { topic?: string; agencyLabel?: string },
 ): Promise<Record<string, string>> {
   const provider = config.imageProvider === 'gemini' ? 'gemini' : 'openai';
   // provider 별로 필요한 키가 다르다. 없으면 조용히 건너뛰고 호출부가 폴백한다.
@@ -37,7 +42,18 @@ export async function generateIllustrations(
     while (idx < scenes.length) {
       const i = idx++;
       const scene = scenes[i];
-      const subject = (scene.illustration || scene.heading || 'a simple concept about AI').trim();
+      const base = (scene.illustration || scene.heading || 'a simple concept about AI').trim();
+      // 씬 묘사 앞에 영상 전체의 맥락을 붙인다. 같은 "회의 장면"이라도 무슨 주제의 어느 기관
+      // 회의인지가 붙어야 주제에서 벗어나지 않는다(맥락 없이 뽑았을 때 미국 소방서가 나온 적이 있다).
+      const ctx = [
+        context?.agencyLabel
+          ? `Context: a public information video for ${context.agencyLabel}, a South Korean government agency.`
+          : '',
+        context?.topic ? `The video is about: ${context.topic}.` : '',
+      ]
+        .filter(Boolean)
+        .join(' ');
+      const subject = ctx ? `${ctx} This shot shows: ${base}` : base;
       try {
         const buf = await generateImage({
           prompt: buildIllustrationPrompt(style, subject, dark),

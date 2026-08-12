@@ -315,11 +315,19 @@ async function generateLiveActionClips(scenes: SceneWithAudio[]): Promise<Record
 
   // 이미지가 있는 liveaction 씬만 대상 — 이미지가 시작 프레임이라 없으면 만들 수 없다.
   const wanted = scenes.filter((s) => s.visual === 'liveaction' && s.imagePath);
-  const cap = Math.max(0, config.veoClipCount);
-  const targets = wanted.slice(0, cap);
+  // 요금은 초 단위로 붙는다. 개수로만 막으면 8초 클립이 섞였을 때 예산을 두 배로 넘길 수 있다.
+  const budgetSec = Math.max(0, config.veoClipCount * config.veoClipSeconds);
+  const targets: SceneWithAudio[] = [];
+  let planned = 0;
+  for (const s of wanted) {
+    const sec = normalizeClipSeconds(s.clipSeconds ?? config.veoClipSeconds);
+    if (planned + sec > budgetSec) continue;
+    planned += sec;
+    targets.push(s);
+  }
   if (wanted.length > targets.length) {
     console.warn(
-      `  ⚠ 실사 클립 ${wanted.length}개 중 ${targets.length}개만 생성합니다(VEO_CLIP_COUNT=${cap} 상한). ` +
+      `  ⚠ 실사 클립 ${wanted.length}개 중 ${targets.length}개만 생성합니다(예산 ${budgetSec}초 상한). ` +
         `나머지는 정지 이미지로 렌더됩니다.`,
     );
   }
@@ -336,8 +344,10 @@ async function generateLiveActionClips(scenes: SceneWithAudio[]): Promise<Record
       const imagePng = await fs.readFile(path.join(PUBLIC_DIR, scene.imagePath!));
       const mp4 = await generateVideoClip({
         imagePng,
-        // motion 이 비면 화면 묘사로 대체한다 — 없는 것보다 낫다.
-        motionPrompt: (scene.motion || scene.illustration || '').trim() || 'subtle natural motion, slow camera push in',
+        // 움직임(motion)만 넘기면 Veo 가 그림 내용을 모른 채 장면을 지어낸다.
+        // 그 씬이 무엇을 담은 그림인지(illustration)를 함께 줘서 같은 장면 안에서만 움직이게 한다.
+        motionPrompt: [scene.illustration?.trim(), scene.motion?.trim()].filter(Boolean).join('. ')
+          || 'subtle natural motion, slow camera push in',
         seconds,
       });
       const rel = `clip/${scene.id}.mp4`;
@@ -389,7 +399,10 @@ async function stepRender(): Promise<void> {
     console.log(`  · 씬별 일러스트 생성 중... (${needsAiImage.length}/${manifest.scenes.length}, 도식/비교/불릿/인용/아이콘 씬은 코드 렌더링으로 대체)`);
     // manifest.theme(다크로 정해졌으면) 에 맞춰 AI 일러스트도 색을 반전해, title/outro 씬만
     // 흰 배경으로 튀지 않고 영상 전체가 한 톤으로 보이게 한다.
-    const imgMap = await generateIllustrations(needsAiImage, manifest.theme === 'dark');
+    const imgMap = await generateIllustrations(needsAiImage, manifest.theme === 'dark', {
+      topic: manifest.title || manifest.topic,
+      agencyLabel: manifest.agencyLabel,
+    });
     manifest.scenes = manifest.scenes.map((s) => ({ ...s, imagePath: imgMap[s.id] }));
     // 실사 클립 — 방금 만든 그 이미지를 시작 프레임으로 움직이게 한다(image-to-video).
     // 이미지가 없으면 만들 수 없으므로 반드시 일러스트 생성 뒤에 온다.

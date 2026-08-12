@@ -50,11 +50,21 @@ export async function generateVideoClip(req: VideoClipRequest): Promise<Buffer> 
   const ai = new GoogleGenAI({ apiKey });
   const model = config.veoModel;
 
+  // 그림에 닻을 내린다. 움직임만 적어 보내면 Veo 가 그림에 무엇이 있는지 모른 채
+  // 장면을 새로 지어내, 시작 프레임만 같고 내용이 딴 데로 새는 클립이 나왔다.
+  // "주어진 이미지를 이어서 움직이게 하라"는 제약을 프롬프트에 명시한다.
+  const anchored = [
+    'Animate the provided image as the first frame of a live-action video clip.',
+    'Keep the same subject, people, setting, framing and color as the image — do not invent new objects, new locations, or on-screen text.',
+    `Motion: ${req.motionPrompt}`,
+    'Realistic, subtle, continuous motion only. No scene change, no cuts, no camera teleporting.',
+  ].join(' ');
+
   let op = await ai.models.generateVideos({
     model,
     // 최상위 prompt/image 인자는 deprecated(2026-07-31 이후 제거 예정) — source 로 넘긴다.
     source: {
-      prompt: req.motionPrompt,
+      prompt: anchored,
       image: { imageBytes: req.imagePng.toString('base64'), mimeType: 'image/png' },
     },
     config: {
