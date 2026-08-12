@@ -141,8 +141,9 @@ export const config = {
   // 장수가 정해지는 구조라, 상한이 없으면 한 편이 폭주해 요금이 몇 배로 뛴다.
   maxImagesPerRun: Number(optional('MAX_IMAGES_PER_RUN', '6')),
 
-  // ── Veo 실사 클립 ── 초당 과금이라 이미지보다 훨씬 비싸다. 기본은 꺼둔다.
-  useVeo: optional('USE_VEO', 'false').toLowerCase() === 'true',
+  // ── Veo 실사 클립 ── 초당 과금이라 이미지보다 훨씬 비싸지만(1편 비용의 약 58%),
+  // 정지 이미지만으로는 홍보 영상이 되지 않아 필수 구성으로 둔다. 비용은 클립 개수로 조절한다.
+  useVeo: optional('USE_VEO', 'true').toLowerCase() === 'true',
   veoModel: optional('VEO_MODEL', 'veo-3.1-lite-generate-preview'),
   // 실행당 클립 개수 하드 상한. 초과하면 생성하지 않는다(요청 스펙: 최대 4회).
   veoClipCount: Number(optional('VEO_CLIP_COUNT', '4')),

@@ -2,7 +2,7 @@
 // GITHUB_TOKEN 은 서버(함수)에만 있고 브라우저에 노출되지 않는다.
 // 허용값 목록은 src/lib/artStyle.ts / src/lib/tone.ts 의 프리셋 id 와 일치해야 한다.
 // (여기서 걸러진 값만 워크플로로 넘어가고, 나머지는 기본값으로 떨어진다.)
-import { PRICE, LIMITS } from '../lib/pricing.js';
+import { PRICE, LIMITS, VEO } from '../lib/pricing.js';
 import { fetchUsageRuns, spentOnDay } from '../lib/usage.js';
 import { estimateRun } from '../lib/estimate.js';
 
@@ -45,7 +45,9 @@ export default async function handler(req, res) {
   }
 
   const willResearch = String(body.topic || '').trim() !== '' || body.mode === 'trend';
-  const wantsVeo = truthyFlag(body.veo);
+  // 실사 클립은 필수 구성이라, 값이 안 오면(캐시된 옛 화면 등) 서버 기본값(켜짐)을 따른다.
+  // false 로 떨어뜨리면 견적은 Veo 없이 내고 파이프라인은 Veo 를 돌려 상한 검사가 헛돈다.
+  const wantsVeo = body.veo === undefined ? VEO.enabled : truthyFlag(body.veo);
   const est = estimateRun({
     minutes: Math.max(1, Math.min(20, Number(body.minutes) || 1)),
     research: willResearch,

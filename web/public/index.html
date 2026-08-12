@@ -296,12 +296,9 @@
           </div>
         </div>
 
-        <p class="hint" style="text-align: left">영상 길이는 <b>1분</b>으로 고정돼 있어요.</p>
-
-        <div class="switch">
-          <input id="veo" type="checkbox" />
-          <label for="veo" style="margin: 0">실사 영상 클립 넣기 (Veo) — 분위기·배경용 짧은 실사 컷 · <b>비용이 크게 올라갑니다</b></label>
-        </div>
+        <p class="hint" style="text-align: left">
+          영상 길이는 <b>1분</b>, 실사 영상 클립(Veo)은 <b>항상 포함</b>돼요.
+        </p>
 
         <div class="switch">
           <input id="upload" type="checkbox" checked />
@@ -409,7 +406,6 @@
       async function refreshEstimate() {
         const minutes = TARGET_MINUTES;
         const willResearch = $('topic').value.trim() !== '' || $('mode').value === 'trend';
-        const useVeo = $('veo').checked;
         const btn = $('estBtn');
         btn.disabled = true;
         btn.textContent = '계산 중…';
@@ -417,7 +413,8 @@
         $('estAmt').textContent = '계산 중…';
         $('estSub').textContent = '';
         try {
-          const r = await fetch(`/api/estimate?minutes=${minutes}&research=${willResearch}&veo=${useVeo}`);
+          // 실사 클립은 선택이 아니라 필수 구성이라 항상 켠 값으로 견적을 낸다.
+          const r = await fetch(`/api/estimate?minutes=${minutes}&research=${willResearch}&veo=true`);
           const d = await r.json();
           if (!r.ok) throw new Error(d.error || '견적 조회 실패');
           const over = d.krw > d.limits.perRunKrw;
@@ -459,7 +456,7 @@
         $('estBtn').textContent = '💰 견적 표시';
         closeConfirm();
       }
-      for (const id of ['topic', 'agency', 'mode', 'level', 'aspect', 'veo', 'upload']) {
+      for (const id of ['topic', 'agency', 'mode', 'level', 'aspect', 'upload']) {
         $(id).addEventListener(id === 'topic' ? 'input' : 'change', invalidateEstimate);
       }
       $('estBtn').addEventListener('click', refreshEstimate);
@@ -527,7 +524,7 @@
               topic, mode: $('mode').value, minutes: TARGET_MINUTES,
               level: $('level').value,
               upload: $('upload').checked, password: $('pw').value,
-              agency: $('agency').value, aspect: $('aspect').value, veo: $('veo').checked,
+              agency: $('agency').value, aspect: $('aspect').value, veo: true,
               // 업로드를 켜면 렌더가 끝나는 대로 곧바로 전체공개(public)로 발행한다.
               // (사람이 확인하고 누르는 단계 없이 자동으로 올라간다 — 체크박스 라벨에 명시.)
               privacy: $('upload').checked ? 'public' : '',

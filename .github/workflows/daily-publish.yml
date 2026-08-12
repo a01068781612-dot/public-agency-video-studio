@@ -94,7 +94,7 @@ jobs:
       # 화면 비율: 16:9(가로, 기본) | 9:16(세로 쇼츠). 렌더 해상도와 이미지 생성 비율이 함께 바뀐다.
       ASPECT_RATIO: ${{ github.event.inputs.aspect || github.event.client_payload.aspect || vars.ASPECT_RATIO || '16:9' }}
       # ── Veo 실사 클립 ── 켜면 클립당 요금이 붙어 회당 비용이 크게 오르므로 기본은 꺼둔다.
-      USE_VEO: ${{ github.event.inputs.use_veo || github.event.client_payload.use_veo || vars.USE_VEO || 'false' }}
+      USE_VEO: ${{ github.event.inputs.use_veo || github.event.client_payload.use_veo || vars.USE_VEO || 'true' }}
       VEO_CLIP_COUNT: ${{ vars.VEO_CLIP_COUNT || '4' }}
       # Veo API 는 4·6·8초만 허용한다(5초 불가).
       VEO_CLIP_SECONDS: ${{ vars.VEO_CLIP_SECONDS || '4' }}

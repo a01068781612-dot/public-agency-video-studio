@@ -25,7 +25,8 @@ export const PRICE = {
 // Veo 클립 설정 — 파이프라인의 VEO_* 환경변수와 같은 값을 봐야 견적이 맞는다.
 // 길이는 API 가 4·6·8초만 허용한다(5초 불가).
 export const VEO = {
-  enabled: String(process.env.USE_VEO || 'false').toLowerCase() === 'true',
+  // 실사 클립은 선택이 아니라 필수 구성이므로 기본값이 켜짐이다(견적에 항상 포함된다).
+  enabled: String(process.env.USE_VEO || 'true').toLowerCase() === 'true',
   clipCount: Number(process.env.VEO_CLIP_COUNT || 4),
   clipSeconds: Number(process.env.VEO_CLIP_SECONDS || 4),
 };
