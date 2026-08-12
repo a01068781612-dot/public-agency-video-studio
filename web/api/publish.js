@@ -91,7 +91,10 @@ export default async function handler(req, res) {
     for (const k of keys) if (body[k] !== undefined && body[k] !== null && body[k] !== '') return body[k];
     return undefined;
   };
-  const client_payload = {
+  // repository_dispatch 의 client_payload 는 "최상위 속성 10개"가 한도다(전체 크기는 256KB로 넉넉하다).
+  // 항목을 평평하게 늘어놓다가 16개가 되어 422 로 거부됐다 — 설정을 cfg 하나로 감싸 한 개만 쓴다.
+  // 워크플로도 github.event.client_payload.cfg.* 로 읽는다.
+  const cfg = {
     // 뉴스 스크립트급 긴 브리핑(타임코드별 섹션 + 참고자료 링크 포함)도 안 잘리게 넉넉히 허용
     // (200자 제한이 "충실 반영" 기능을 무력화시켰던 전례가 있음). GitHub repository_dispatch
     // client_payload 한도(256KB)에 비하면 여전히 작아 안전하다.
@@ -126,6 +129,7 @@ export default async function handler(req, res) {
     // 미리보기 실행 ID — 그 실행의 대본을 이어받아 나머지만 만든다.
     resume_run_id: resumeRunId,
   };
+  const client_payload = { cfg };
 
   // 알 수 없는 키가 섞여 오면 조용히 버리지 말고 응답에 알려준다(오타로 인한 설정 유실 방지).
   const KNOWN = new Set([
@@ -155,16 +159,18 @@ export default async function handler(req, res) {
     ok: true,
     // 실제로 무엇이 전달됐는지 되돌려준다 — 업로드 여부/스타일이 의도와 다른지 즉시 확인 가능.
     applied: {
-      do_upload: client_payload.do_upload,
-      style: client_payload.style || '(워크플로 기본값)',
-      privacy: client_payload.privacy || '(워크플로 기본값)',
-      target_minutes: client_payload.target_minutes,
-      speed: client_payload.speed || '(워크플로 기본값)',
-      art_style: client_payload.art_style || '(워크플로 기본값)',
-      narration_tone: client_payload.narration_tone || '(워크플로 기본값)',
-      agency: client_payload.agency || '(지정 안 함)',
-      aspect: client_payload.aspect || '(워크플로 기본값)',
-      use_veo: client_payload.use_veo,
+      do_upload: cfg.do_upload,
+      style: cfg.style || '(워크플로 기본값)',
+      privacy: cfg.privacy || '(워크플로 기본값)',
+      target_minutes: cfg.target_minutes,
+      speed: cfg.speed || '(워크플로 기본값)',
+      art_style: cfg.art_style || '(워크플로 기본값)',
+      narration_tone: cfg.narration_tone || '(워크플로 기본값)',
+      agency: cfg.agency || '(지정 안 함)',
+      aspect: cfg.aspect || '(워크플로 기본값)',
+      use_veo: cfg.use_veo,
+      preview_only: cfg.preview_only,
+      resume_run_id: cfg.resume_run_id || '(없음)',
     },
     ...(ignored.length ? { ignoredKeys: ignored } : {}),
   });
