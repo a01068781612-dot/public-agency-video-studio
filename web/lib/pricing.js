@@ -38,11 +38,13 @@ export const LIMITS = {
   // 유료 실행 전면 차단 스위치(비상정지).
   spendEnabled: String(process.env.SPEND_ENABLED || 'true').toLowerCase() !== 'false',
   // 실행 1회 예상 비용 상한(원). 견적이 이보다 크면 트리거를 거부한다.
-  // 실사 클립을 켠 1분 영상의 견적이 약 2,400원이라 상한이 1,500원이면 항상 거부된다 —
-  // 실비에 약간의 여유만 얹어 3,000원으로 둔다(오차로 막히지 않을 만큼만).
-  perRunKrw: Number(process.env.LIMIT_PER_RUN_KRW || 3000),
+  // 시댄스 2.5(480p) 전환 후 1분 영상 견적이 약 4,100원으로 올라서(Veo 때는 약 2,400원),
+  // 옛 상한 3,000원을 그대로 두면 정상적인 실행까지 항상 거부된다. 실비에 여유를 조금
+  // 얹어 5,000원으로 둔다(오차로 막히지 않을 만큼만 — DAILY_VIDEO_LIMIT=1 이 이미 남발을 막는다).
+  perRunKrw: Number(process.env.LIMIT_PER_RUN_KRW || 5000),
   // 하루 누적 사용액 상한(원). 오늘 이미 이만큼 썼으면 더 실행하지 않는다.
-  perDayKrw: Number(process.env.LIMIT_PER_DAY_KRW || 5000),
+  // 영상 1편(~4,100원) + 대본 미리보기 몇 번(각 ~130원)이 여유 있게 들어가게 6,000원.
+  perDayKrw: Number(process.env.LIMIT_PER_DAY_KRW || 6000),
   // 하루에 만들 수 있는 영상 개수 상한(대본 미리보기는 세지 않는다).
   dailyVideoLimit: Number(process.env.DAILY_VIDEO_LIMIT || 1),
   // 캠페인 종료일(KST). 코드는 남겨두고 날짜로만 잠근다 — src/config.ts 의 같은 이름 값과
