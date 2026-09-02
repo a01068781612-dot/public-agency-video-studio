@@ -234,76 +234,6 @@
 
         <div class="row">
           <div>
-            <label for="agency">홍보 타겟 기관</label>
-            <select id="agency">
-              <option value="" selected>지정 안 함(일반 공공부문)</option>
-              <optgroup label="부">
-                <option value="moef">기획재정부</option>
-                <option value="moe">교육부</option>
-                <option value="msit">과학기술정보통신부</option>
-                <option value="mofa">외교부</option>
-                <option value="unikorea">통일부</option>
-                <option value="moj">법무부</option>
-                <option value="mnd">국방부</option>
-                <option value="mois">행정안전부</option>
-                <option value="mpva">국가보훈부</option>
-                <option value="mcst">문화체육관광부</option>
-                <option value="mafra">농림축산식품부</option>
-                <option value="motie">산업통상자원부</option>
-                <option value="mohw">보건복지부</option>
-                <option value="me">환경부</option>
-                <option value="moel">고용노동부</option>
-                <option value="mogef">여성가족부</option>
-                <option value="molit">국토교통부</option>
-                <option value="mof">해양수산부</option>
-                <option value="mss">중소벤처기업부</option>
-              </optgroup>
-              <optgroup label="처">
-                <option value="mpm">인사혁신처</option>
-                <option value="moleg">법제처</option>
-                <option value="mfds">식품의약품안전처</option>
-              </optgroup>
-              <optgroup label="청">
-                <option value="nts">국세청</option>
-                <option value="customs">관세청</option>
-                <option value="pps">조달청</option>
-                <option value="kostat">통계청</option>
-                <option value="spo">검찰청</option>
-                <option value="mma">병무청</option>
-                <option value="dapa">방위사업청</option>
-                <option value="police">경찰청</option>
-                <option value="nfa">소방청</option>
-                <option value="khs">국가유산청</option>
-                <option value="rda">농촌진흥청</option>
-                <option value="kfs">산림청</option>
-                <option value="kipo">특허청</option>
-                <option value="kdca">질병관리청</option>
-                <option value="kma">기상청</option>
-                <option value="kcg">해양경찰청</option>
-                <option value="saemangeum">새만금개발청</option>
-                <option value="nacc">행정중심복합도시건설청</option>
-                <option value="kasa">우주항공청</option>
-                <option value="okva">재외동포청</option>
-              </optgroup>
-              <optgroup label="위원회">
-                <option value="ftc">공정거래위원회</option>
-                <option value="fsc">금융위원회</option>
-                <option value="acrc">국민권익위원회</option>
-                <option value="kcc">방송통신위원회</option>
-                <option value="pipc">개인정보보호위원회</option>
-                <option value="nssc">원자력안전위원회</option>
-              </optgroup>
-            </select>
-          </div>
-          <div>
-            <label for="level">타겟층</label>
-            <select id="level">
-              <option value="basic">일반 국민 — 쉬운 말로 풀어서</option>
-              <option value="intermediate" selected>기관 실무자 — 업무에 바로 쓰게</option>
-              <option value="expert">전문가·언론 — 깊이 있게</option>
-            </select>
-          </div>
-          <div>
             <label for="aspect">화면 비율</label>
             <select id="aspect">
               <option value="16:9" selected>가로 16:9 (일반)</option>
@@ -313,6 +243,7 @@
         </div>
 
         <p class="hint" style="text-align: left">
+          홍보 타겟 기관은 <b>소방청</b>, 타겟층은 <b>일반 국민</b>으로 고정돼 있어요.
           영상 길이는 <b>1분</b>, 실사 영상 클립(Veo)은 <b>항상 포함</b>돼요.
         </p>
 
@@ -430,6 +361,9 @@
       // 영상 길이는 1분 고정 — 선택지를 없애고 한 값으로만 간다.
       // (바꾸려면 여기와 저장소 변수 TARGET_MINUTES 를 함께 고친다.)
       const TARGET_MINUTES = 1;
+      // 홍보 타겟 기관은 소방청, 타겟층은 일반 국민으로 고정 — 드롭다운을 없애고 한 값으로만 간다.
+      const TARGET_AGENCY = 'nfa';
+      const TARGET_LEVEL = 'basic';
 
       const $ = (id) => document.getElementById(id);
       const toast = (msg, kind = 'info') => {
@@ -505,7 +439,7 @@
         }
         closeConfirm();
       }
-      for (const id of ['topic', 'agency', 'level', 'aspect', 'upload', 'noresearch']) {
+      for (const id of ['topic', 'aspect', 'upload', 'noresearch']) {
         $(id).addEventListener(id === 'topic' ? 'input' : 'change', invalidateEstimate);
       }
       $('estBtn').addEventListener('click', refreshEstimate);
@@ -594,11 +528,11 @@
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               topic, minutes: TARGET_MINUTES,
-              level: $('level').value,
+              level: TARGET_LEVEL,
               // 미리보기는 대본까지만 만들고 멈추므로 업로드가 있을 수 없다.
               upload: isPreview ? false : $('upload').checked,
               password: $('pw').value,
-              agency: $('agency').value, aspect: $('aspect').value, veo: true,
+              agency: TARGET_AGENCY, aspect: $('aspect').value, veo: true,
               preview: isPreview,
               skipResearch: $('noresearch').checked,
               // 이어만들기: 미리보기 실행의 대본을 그대로 쓴다.
