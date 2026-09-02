@@ -2,7 +2,7 @@
 //
 // 계산 자체는 web/lib/estimate.js 에 있고, 여기서는 최근 실행 실측치로 보정만 한다.
 // (같은 계산을 /api/publish 의 상한 검사도 쓴다 — 견적과 차단 기준이 어긋나면 안 되므로.)
-import { LIMITS } from '../lib/pricing.js';
+import { LIMITS, isVideoGenExpired } from '../lib/pricing.js';
 import { fetchUsageRuns } from '../lib/usage.js';
 import { estimateRun, MODEL } from '../lib/estimate.js';
 
@@ -24,7 +24,14 @@ export default async function handler(req, res) {
     minutes,
     research,
     ...est,
-    limits: { perRunKrw: LIMITS.perRunKrw, perDayKrw: LIMITS.perDayKrw, spendEnabled: LIMITS.spendEnabled },
+    limits: {
+      perRunKrw: LIMITS.perRunKrw,
+      perDayKrw: LIMITS.perDayKrw,
+      spendEnabled: LIMITS.spendEnabled,
+      dailyVideoLimit: LIMITS.dailyVideoLimit,
+      videoGenExpiresAt: LIMITS.videoGenExpiresAt,
+    },
+    expired: isVideoGenExpired(),
     overLimit: est.krw > LIMITS.perRunKrw,
     calibratedFrom: samples,
     note: samples

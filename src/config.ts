@@ -202,7 +202,23 @@ export const config = {
 
   // 동작
   doUpload: optional('DO_UPLOAD', 'false').toLowerCase() === 'true',
+
+  // ── 캠페인 종료일 ── 이 채널은 9월까지만 운영한다. 코드는 남겨두고 날짜로 잠근다
+  // (isVideoGenExpired 가 이 값을 기준으로 판단). 연장하려면 이 날짜만 바꾸면 된다.
+  videoGenExpiresAt: optional('VIDEO_GEN_EXPIRES_AT', '2026-09-30'),
+  // 하루에 만들 수 있는 영상 개수 상한(대본 미리보기는 세지 않는다).
+  dailyVideoLimit: Number(optional('DAILY_VIDEO_LIMIT', '1')),
 };
+
+/**
+ * 오늘(KST)이 캠페인 종료일을 지났는지. 지났으면 파이프라인 유료 단계를 전부 막는다.
+ * SPEND_ENABLED 와 같은 자리에서 쓰는 안전장치 — 코드를 지우지 않고 날짜로만 잠근다.
+ */
+export function isVideoGenExpired(date = new Date()): boolean {
+  const kst = new Date(date.getTime() + 9 * 60 * 60 * 1000);
+  const todayKst = kst.toISOString().slice(0, 10); // YYYY-MM-DD (KST 기준)
+  return todayKst > config.videoGenExpiresAt;
+}
 
 /**
  * CONTENT_MODE 가 auto 일 때 요일에 따라 트렌드/기초를 번갈아 선택.

@@ -4,6 +4,7 @@ import path from 'node:path';
 import {
   config,
   resolveTopicMode,
+  isVideoGenExpired,
   ROOT,
   OUT_DIR,
   PUBLIC_DIR,
@@ -570,6 +571,14 @@ async function main() {
     throw new Error(
       'SPEND_ENABLED=false 이므로 유료 API 를 호출하는 단계를 실행하지 않습니다. ' +
         '다시 쓰려면 SPEND_ENABLED 를 true 로 되돌리세요.',
+    );
+  }
+  // 캠페인 종료일이 지났으면 웹앱을 거치지 않고 워크플로를 직접 실행해도 막는다
+  // (웹앱 쪽 차단은 web/api/publish.js 에 별도로 있다 — 여기는 우회 방지용 이중 잠금).
+  if (isVideoGenExpired() && steps.some((s) => PAID_STEPS.includes(s))) {
+    throw new Error(
+      `이 캠페인은 ${config.videoGenExpiresAt}까지만 운영합니다. 그 이후엔 영상을 만들지 않습니다. ` +
+        '연장하려면 VIDEO_GEN_EXPIRES_AT 를 미래 날짜로 바꾸세요.',
     );
   }
 

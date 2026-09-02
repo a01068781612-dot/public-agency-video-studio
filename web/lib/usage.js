@@ -48,3 +48,39 @@ export function spentOnDay(runs, now = new Date()) {
     .filter((e) => dayKey(new Date(e.at)) === today)
     .reduce((s, e) => s + e.usd, 0);
 }
+
+/**
+ * 오늘(KST) 안에 실제로 완성된(=대본 미리보기가 아닌) 영상 개수.
+ * "렌더링" 스텝이 있고 건너뛰지 않은 채 성공했으면 완성으로 친다 — 대본 미리보기는
+ * 그 스텝을 건너뛰므로(daily-publish.yml 의 PREVIEW_ONLY 조건) 세지 않고,
+ * 실패한 실행도 그 날의 몫을 쓴 것으로 치지 않는다(재시도가 막히면 안 되므로).
+ */
+export async function countFullVideosToday({ token, repo }, now = new Date()) {
+  if (!token || !repo) return 0;
+  const headers = {
+    Authorization: `Bearer ${token}`,
+    Accept: 'application/vnd.github+json',
+    'X-GitHub-Api-Version': '2022-11-28',
+  };
+  const dayKey = (d) => new Date(new Date(d).getTime() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  const today = dayKey(now);
+
+  const rr = await fetch(
+    `https://api.github.com/repos/${repo}/actions/runs?per_page=20&status=success`,
+    { headers },
+  );
+  if (!rr.ok) return 0;
+  const { workflow_runs = [] } = await rr.json();
+  const candidates = workflow_runs.filter((w) => dayKey(w.created_at) === today);
+
+  let count = 0;
+  for (const w of candidates) {
+    const jr = await fetch(`https://api.github.com/repos/${repo}/actions/runs/${w.id}/jobs`, { headers });
+    if (!jr.ok) continue;
+    const { jobs = [] } = await jr.json();
+    const steps = jobs[0]?.steps || [];
+    const renderStep = steps.find((s) => s.name && s.name.includes('렌더'));
+    if (renderStep && renderStep.conclusion === 'success') count++;
+  }
+  return count;
+}

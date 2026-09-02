@@ -136,6 +136,8 @@ jobs:
       # ── 비용 안전장치 ── 요금이 새면 저장소 변수 SPEND_ENABLED 를 false 로 두어 즉시 멈춘다.
       SPEND_ENABLED: ${{ vars.SPEND_ENABLED || 'true' }}
       MAX_IMAGES_PER_RUN: ${{ vars.MAX_IMAGES_PER_RUN || '6' }}
+      # ── 캠페인 종료일 ── web/lib/pricing.js 의 같은 이름 값(Vercel 환경변수)과 반드시 맞출 것.
+      VIDEO_GEN_EXPIRES_AT: ${{ vars.VIDEO_GEN_EXPIRES_AT || '2026-09-30' }}
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       OPENAI_IMAGE_MODEL: ${{ vars.OPENAI_IMAGE_MODEL || 'gpt-image-2' }}
       OPENAI_ILLUSTRATION_MODEL: ${{ vars.OPENAI_ILLUSTRATION_MODEL || 'gpt-image-1-mini' }}

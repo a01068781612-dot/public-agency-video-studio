@@ -43,7 +43,19 @@ export const LIMITS = {
   perRunKrw: Number(process.env.LIMIT_PER_RUN_KRW || 3000),
   // 하루 누적 사용액 상한(원). 오늘 이미 이만큼 썼으면 더 실행하지 않는다.
   perDayKrw: Number(process.env.LIMIT_PER_DAY_KRW || 5000),
+  // 하루에 만들 수 있는 영상 개수 상한(대본 미리보기는 세지 않는다).
+  dailyVideoLimit: Number(process.env.DAILY_VIDEO_LIMIT || 1),
+  // 캠페인 종료일(KST). 코드는 남겨두고 날짜로만 잠근다 — src/config.ts 의 같은 이름 값과
+  // 반드시 같이 맞춰야 한다(웹앱은 트리거 전에 막고, 파이프라인은 우회 실행을 막는 이중 잠금).
+  videoGenExpiresAt: process.env.VIDEO_GEN_EXPIRES_AT || '2026-09-30',
 };
+
+/** 오늘(KST)이 캠페인 종료일을 지났는지. */
+export function isVideoGenExpired(date = new Date()) {
+  const kst = new Date(date.getTime() + 9 * 60 * 60 * 1000);
+  const todayKst = kst.toISOString().slice(0, 10);
+  return todayKst > LIMITS.videoGenExpiresAt;
+}
 
 /** 사용량 합계 → 달러. 필드가 없으면 0으로 친다. */
 export function cost(t) {

@@ -2,8 +2,8 @@
 // GITHUB_TOKEN 은 서버(함수)에만 있고 브라우저에 노출되지 않는다.
 // 허용값 목록은 src/lib/artStyle.ts / src/lib/tone.ts 의 프리셋 id 와 일치해야 한다.
 // (여기서 걸러진 값만 워크플로로 넘어가고, 나머지는 기본값으로 떨어진다.)
-import { PRICE, LIMITS, LIVE_VIDEO } from '../lib/pricing.js';
-import { fetchUsageRuns, spentOnDay } from '../lib/usage.js';
+import { PRICE, LIMITS, LIVE_VIDEO, isVideoGenExpired } from '../lib/pricing.js';
+import { fetchUsageRuns, spentOnDay, countFullVideosToday } from '../lib/usage.js';
 import { estimateRun } from '../lib/estimate.js';
 
 // 'false'(문자열)도 거짓으로 취급 — JSON 으로 오가며 문자열이 되는 경우가 많다.
@@ -34,6 +34,14 @@ export default async function handler(req, res) {
 
   if (APP_PASSWORD && body.password !== APP_PASSWORD) {
     return res.status(401).json({ error: '앱 비밀번호가 올바르지 않습니다' });
+  }
+
+  // ── 캠페인 종료일 ── 9월까지만 운영한다. 코드는 남겨두고 날짜로만 잠근다.
+  if (isVideoGenExpired()) {
+    return res.status(403).json({
+      error: `이 서비스는 ${LIMITS.videoGenExpiresAt}까지만 운영합니다.`,
+      hint: '연장하려면 Vercel 환경변수 VIDEO_GEN_EXPIRES_AT 를 미래 날짜로 바꾸세요.',
+    });
   }
 
   // ── 비용 안전장치 ── 트리거하기 전에 막는다. 일단 실행되면 중간에 세울 방법이 없다.
@@ -84,6 +92,24 @@ export default async function handler(req, res) {
     }
   } catch {
     /* 집계 실패는 무시 — 상한 검사 때문에 정상 실행이 막히면 더 곤란하다 */
+  }
+
+  // 하루 영상 개수 상한 — 대본 미리보기는 영상이 아니므로 세지 않는다.
+  // (조회 실패 시엔 통과시킨다 — 집계 불가로 정상 실행이 막히면 더 곤란하다.)
+  if (!previewOnly) {
+    try {
+      const madeToday = await countFullVideosToday({ token: GITHUB_TOKEN, repo: GITHUB_REPO });
+      if (madeToday >= LIMITS.dailyVideoLimit) {
+        return res.status(403).json({
+          error: `오늘 이미 영상을 ${madeToday}개 만들었습니다(하루 상한 ${LIMITS.dailyVideoLimit}개).`,
+          hint: '내일 다시 시도하거나, 상한(DAILY_VIDEO_LIMIT)을 조정하세요.',
+          madeToday,
+          dailyVideoLimit: LIMITS.dailyVideoLimit,
+        });
+      }
+    } catch {
+      /* 집계 실패는 무시 */
+    }
   }
 
   // 키 이름을 하나만 받으면, 다른 이름으로 보낸 값이 "조용히 무시"된다.
