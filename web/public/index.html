@@ -244,7 +244,7 @@
 
         <p class="hint" style="text-align: left">
           홍보 타겟 기관은 <b>소방청</b>, 타겟층은 <b>일반 국민</b>으로 고정돼 있어요.
-          영상 길이는 <b>1분</b>, 실사 영상 클립(Veo)은 <b>항상 포함</b>돼요.
+          영상 길이는 <b>1분</b>, 실사 영상 클립(시댄스 2.5)은 <b>항상 포함</b>돼요.
         </p>
 
         <div class="switch">
@@ -389,7 +389,7 @@
           // 실사 클립은 선택이 아니라 필수 구성이라 항상 켠 값으로 견적을 낸다.
           // 미리보기를 이미 돌렸다면 대본을 재사용하므로 그만큼 싸진다.
           const reuse = previewRunId ? '&reuseScript=true' : '';
-          const r = await fetch(`/api/estimate?minutes=${minutes}&research=${willResearch}&veo=true${reuse}`);
+          const r = await fetch(`/api/estimate?minutes=${minutes}&research=${willResearch}&liveVideo=true${reuse}`);
           const d = await r.json();
           if (!r.ok) throw new Error(d.error || '견적 조회 실패');
           const over = d.krw > d.limits.perRunKrw;
@@ -401,7 +401,7 @@
             `나레이션 ${fmtUsd(d.breakdown.tts)}`,
             `이미지 ${fmtUsd(d.breakdown.images)}`,
           ];
-          if (d.veo.enabled) parts.push(`실사영상 ${fmtUsd(d.breakdown.veo)} (${d.veo.clips}클립 ${d.veo.seconds}초)`);
+          if (d.liveVideo.enabled) parts.push(`실사영상 ${fmtUsd(d.breakdown.liveVideo)} (${d.liveVideo.clips}클립 ${d.liveVideo.seconds}초)`);
           const warn = over
             ? ` ⚠️ 1회 상한 ${d.limits.perRunKrw.toLocaleString()}원을 넘어 실행이 차단됩니다.`
             : '';
@@ -532,7 +532,7 @@
               // 미리보기는 대본까지만 만들고 멈추므로 업로드가 있을 수 없다.
               upload: isPreview ? false : $('upload').checked,
               password: $('pw').value,
-              agency: TARGET_AGENCY, aspect: $('aspect').value, veo: true,
+              agency: TARGET_AGENCY, aspect: $('aspect').value, liveVideo: true,
               preview: isPreview,
               skipResearch: $('noresearch').checked,
               // 이어만들기: 미리보기 실행의 대본을 그대로 쓴다.

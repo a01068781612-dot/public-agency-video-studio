@@ -17,7 +17,7 @@ export type UsageKind =
   | 'gemini-image'
   | 'elevenlabs'
   | 'gemini-tts'
-  | 'veo-video';
+  | 'seedance-video';
 
 export interface UsageEntry {
   kind: UsageKind;
@@ -31,7 +31,7 @@ export interface UsageEntry {
   chars?: number;
   /** 이미지는 장 수로 과금된다. */
   images?: number;
-  /** 영상(Veo)은 초 단위로 과금된다. */
+  /** 영상(시댄스)은 초 단위로 과금된다. */
   seconds?: number;
 }
 
@@ -105,7 +105,8 @@ function printCostKrw(list: UsageEntry[]): void {
     image: Number(process.env.PRICE_IMAGE || 0.19),
     geminiImage: Number(process.env.PRICE_GEMINI_IMAGE || 0.067),
     tts1k: Number(process.env.PRICE_TTS_1K || 0.22),
-    veoSec: Number(process.env.PRICE_VEO_SEC || 0.05),
+    // 시댄스 2.5, 480p 기준(BytePlus/Replicate 원가) — 720p 는 약 0.2312.
+    seedanceSec: Number(process.env.PRICE_SEEDANCE_SEC || 0.1028),
     usdKrw: Number(process.env.USD_KRW || 1380),
   };
   let usd = 0;
@@ -117,7 +118,7 @@ function printCostKrw(list: UsageEntry[]): void {
     else if (e.kind === 'openai-image') usd += (e.images || 0) * P.image;
     else if (e.kind === 'gemini-image') usd += (e.images || 0) * P.geminiImage;
     else if (e.kind === 'elevenlabs') usd += ((e.chars || 0) / 1000) * P.tts1k;
-    else if (e.kind === 'veo-video') usd += (e.seconds || 0) * P.veoSec;
+    else if (e.kind === 'seedance-video') usd += (e.seconds || 0) * P.seedanceSec;
   }
   const krw = Math.round(usd * P.usdKrw);
   console.log(`  ${'─'.repeat(28)}`);

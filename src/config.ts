@@ -155,15 +155,21 @@ export const config = {
   // 장수가 정해지는 구조라, 상한이 없으면 한 편이 폭주해 요금이 몇 배로 뛴다.
   maxImagesPerRun: Number(optional('MAX_IMAGES_PER_RUN', '6')),
 
-  // ── Veo 실사 클립 ── 초당 과금이라 이미지보다 훨씬 비싸지만(1편 비용의 약 58%),
+  // ── 실사 클립(시댄스 2.5, Replicate 경유) ── 초당 과금이라 이미지보다 훨씬 비싸지만,
   // 정지 이미지만으로는 홍보 영상이 되지 않아 필수 구성으로 둔다. 비용은 클립 개수로 조절한다.
-  useVeo: optional('USE_VEO', 'true').toLowerCase() === 'true',
-  veoModel: optional('VEO_MODEL', 'veo-3.1-lite-generate-preview'),
-  // 실행당 클립 개수 하드 상한. 초과하면 생성하지 않는다(요청 스펙: 최대 4회).
-  veoClipCount: Number(optional('VEO_CLIP_COUNT', '6')),
-  // 클립 길이는 대본이 내용에 맞춰 4·6·8초 중에 고른다. 이 값은 대본이 지정하지
-  // 않았을 때의 기본값 겸, 총 길이 상한 계산의 기준이다.
-  veoClipSeconds: Number(optional('VEO_CLIP_SECONDS', '4')),
+  // 이전엔 Veo 3.1 Lite 를 썼으나, 시댄스 2.5 가 같은 480p 기준으로 더 싸고 최대 30초까지
+  // 한 번에 뽑혀 클립을 여러 개 이어붙일 필요가 줄어든다. Replicate 는 BytePlus 공식 원가를
+  // 그대로 따르면서 계정 승인 절차 없이 바로 API 키가 나와 이쪽으로 붙였다.
+  useLiveVideo: optional('USE_LIVE_VIDEO', 'true').toLowerCase() === 'true',
+  replicateApiToken: optional('REPLICATE_API_TOKEN', ''),
+  seedanceModel: optional('SEEDANCE_MODEL', 'bytedance/seedance-2.5'),
+  // 480p 가 시댄스 2.5 의 최저 해상도이자 최저가(720p 대비 절반 이하). 이 채널은 화질보다 비용이 우선.
+  seedanceResolution: optional('SEEDANCE_RESOLUTION', '480p'),
+  // 실행당 클립 개수 하드 상한. 초과하면 생성하지 않는다.
+  liveVideoClipCount: Number(optional('LIVE_VIDEO_CLIP_COUNT', '6')),
+  // 클립 길이(초). 시댄스 2.5는 4~30초 사이 아무 정수나 받는다(Veo 처럼 4·6·8 고정 단계가 아니다).
+  // 이 값은 대본이 지정하지 않았을 때의 기본값 겸, 총 길이 예산 계산의 기준이다.
+  liveVideoClipSeconds: Number(optional('LIVE_VIDEO_CLIP_SECONDS', '4')),
 
   // 씬 일러스트 화풍(src/lib/artStyle.ts). auto 면 날짜 기준으로 회차마다 다르게 고른다.
   artStyle: optional('ART_STYLE', 'isometric').toLowerCase(),

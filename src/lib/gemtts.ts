@@ -11,7 +11,7 @@ import { recordUsage } from './usage.js';
  * API 로 못 쓰고("Free users cannot use library voices via the API"), 바로 쓸 수 있는
  * 22개는 전부 영어 성우라 한국어를 읽히면 억양이 어색했다.
  *
- * Gemini TTS 는 한국어를 지원하고, 이미지·Veo 에 쓰는 GEMINI_API_KEY 를 그대로 쓴다
+ * Gemini TTS 는 한국어를 지원하고, 이미지 생성에 쓰는 GEMINI_API_KEY 를 그대로 쓴다
  * (새 계정·새 결제 없음). 아직 preview 라 모델 ID 가 바뀔 수 있어 환경변수로 빼 뒀다.
  */
 

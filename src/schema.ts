@@ -38,7 +38,7 @@ export const VisualKind = z.enum([
   // 실제 장면을 그린 AI 일러스트 한 장. 나머지 종류는 전부 코드(글자·도형)로 그려지므로,
   // 화면에 "그림"이 들어가는 유일한 씬이다 — 이게 없으면 영상 전체가 글자만 남는다.
   'illustration',
-  // illustration 과 같지만, 그 그림을 시작 프레임으로 짧은 실사 영상까지 만든다(Veo).
+  // illustration 과 같지만, 그 그림을 시작 프레임으로 짧은 실사 영상까지 만든다(시댄스 2.5).
   // 초당 과금이라 비싸므로 실행당 몇 컷만 허용된다 — 대본이 "가장 움직임이 필요한" 대목에만 쓴다.
   'liveaction',
   'outro', // 마무리/구독 유도
@@ -123,9 +123,9 @@ export const SceneSchema = z.object({
   illustration: z.string().default(''),
   // liveaction 전용 — "무엇이 어떻게 움직이는가"를 적는 영어 묘사(장면 설명이 아니라 움직임).
   motion: z.string().optional(),
-  // liveaction 전용 — 클립 길이(초). Veo API 가 4·6·8 만 허용한다.
-  // 움직임이 단순하면 4, 전개가 있으면 6, 넓은 현장을 훑으면 8.
-  clipSeconds: z.union([z.literal(4), z.literal(6), z.literal(8)]).optional(),
+  // liveaction 전용 — 클립 길이(초). 시댄스 2.5 API 는 4~30초 사이 정수를 받는다.
+  // 움직임이 단순하면 4, 전개가 있으면 6, 넓은 현장을 훑으면 8 — 그 이상은 특수한 경우에만.
+  clipSeconds: z.number().int().min(4).max(30).optional(),
   // title/outro 씬에서 실제로 렌더링되는 평면 2D 아이콘. 이 씬이 설명하는 구체적 대상과
   // 맞는 아이콘을 고른다(예: 보안 얘기면 lock, 데이터 얘기면 database).
   icon: IconKind.optional(),
@@ -166,7 +166,7 @@ export const ScriptSchema = z.object({
   // 문구를 짧게 쓰는 대신 "무엇에 대한 영상인지"를 남기는 구석 배지 (제품·회사명). 없으면 배지 생략.
   thumbnailBadge: z.string().optional().default(''),
   // 최소 3 — 예전엔 6이었는데, 1분짜리는 5씬이면 충분해서 모델이 빈 씬으로 자리를 채웠다.
-  // 빈 씬은 화면이 비는 데다 liveaction 으로 잡히면 Veo 클립까지 생성돼 돈이 샌다.
+  // 빈 씬은 화면이 비는 데다 liveaction 으로 잡히면 시댄스 클립까지 생성돼 돈이 샌다.
   scenes: z.array(SceneSchema).min(3),
 });
 

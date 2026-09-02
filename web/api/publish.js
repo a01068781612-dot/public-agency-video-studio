@@ -2,7 +2,7 @@
 // GITHUB_TOKEN 은 서버(함수)에만 있고 브라우저에 노출되지 않는다.
 // 허용값 목록은 src/lib/artStyle.ts / src/lib/tone.ts 의 프리셋 id 와 일치해야 한다.
 // (여기서 걸러진 값만 워크플로로 넘어가고, 나머지는 기본값으로 떨어진다.)
-import { PRICE, LIMITS, VEO } from '../lib/pricing.js';
+import { PRICE, LIMITS, LIVE_VIDEO } from '../lib/pricing.js';
 import { fetchUsageRuns, spentOnDay } from '../lib/usage.js';
 import { estimateRun } from '../lib/estimate.js';
 
@@ -48,15 +48,15 @@ export default async function handler(req, res) {
   const skipResearch = truthyFlag(body.skipResearch);
   const willResearch = !skipResearch && (String(body.topic || '').trim() !== '' || body.mode === 'trend');
   // 실사 클립은 필수 구성이라, 값이 안 오면(캐시된 옛 화면 등) 서버 기본값(켜짐)을 따른다.
-  // false 로 떨어뜨리면 견적은 Veo 없이 내고 파이프라인은 Veo 를 돌려 상한 검사가 헛돈다.
-  const wantsVeo = body.veo === undefined ? VEO.enabled : truthyFlag(body.veo);
+  // false 로 떨어뜨리면 견적은 실사 클립 없이 내고 파이프라인은 그걸 돌려 상한 검사가 헛돈다.
+  const wantsLiveVideo = body.liveVideo === undefined ? LIVE_VIDEO.enabled : truthyFlag(body.liveVideo);
   // 대본 미리보기(대본까지만) / 이어만들기(미리보기 대본 재사용) — 비용이 서로 다르다.
   const previewOnly = truthyFlag(body.preview);
   const resumeRunId = String(body.resumeRun || '').replace(/\D/g, '');
   const est = estimateRun({
     minutes: Math.max(1, Math.min(20, Number(body.minutes) || 1)),
     research: willResearch,
-    veo: wantsVeo,
+    liveVideo: wantsLiveVideo,
     scriptOnly: previewOnly,
     reuseScript: Boolean(resumeRunId),
   });
@@ -124,8 +124,8 @@ export default async function handler(req, res) {
     agency: AGENCIES.includes(body.agency) ? body.agency : '',
     // 화면 비율: 16:9(가로) | 9:16(세로 쇼츠). 알 수 없는 값은 빈 값 → 워크플로 기본값(16:9).
     aspect: ['16:9', '9:16'].includes(body.aspect) ? body.aspect : '',
-    // Veo 실사 클립 사용 여부. 켜면 클립당 요금이 붙으므로 명시적으로 켤 때만 'true'.
-    use_veo: wantsVeo ? 'true' : 'false',
+    // 시댄스 실사 클립 사용 여부. 켜면 클립당 요금이 붙으므로 명시적으로 켤 때만 'true'.
+    use_live_video: wantsLiveVideo ? 'true' : 'false',
     // 대본까지만 만들고 멈춘다(약 130원). 나레이션·이미지·실사·업로드를 건너뛴다.
     preview_only: previewOnly ? 'true' : 'false',
     // 미리보기 실행 ID — 그 실행의 대본을 이어받아 나머지만 만든다.
@@ -139,7 +139,7 @@ export default async function handler(req, res) {
   const KNOWN = new Set([
     'topic', 'mode', 'content_mode', 'level', 'content_level', 'upload', 'do_upload',
     'minutes', 'target_minutes', 'channel', 'privacy', 'style', 'speed', 'narration_speed', 'password',
-    'art', 'art_style', 'tone', 'narration_tone', 'agency', 'aspect', 'veo',
+    'art', 'art_style', 'tone', 'narration_tone', 'agency', 'aspect', 'liveVideo',
     'preview', 'resumeRun', 'skipResearch',
   ]);
   const ignored = Object.keys(body).filter((k) => !KNOWN.has(k));
@@ -172,7 +172,7 @@ export default async function handler(req, res) {
       narration_tone: cfg.narration_tone || '(워크플로 기본값)',
       agency: cfg.agency || '(지정 안 함)',
       aspect: cfg.aspect || '(워크플로 기본값)',
-      use_veo: cfg.use_veo,
+      use_live_video: cfg.use_live_video,
       preview_only: cfg.preview_only,
       resume_run_id: cfg.resume_run_id || '(없음)',
     },

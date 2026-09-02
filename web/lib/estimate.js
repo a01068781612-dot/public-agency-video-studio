@@ -1,6 +1,6 @@
 // 실행 1회 예상 비용 계산 — 견적 화면(/api/estimate)과 상한 검사(/api/publish)가 공유한다.
 // 두 곳이 다른 값을 쓰면 "견적은 통과인데 실행은 거부" 같은 모순이 생기므로 한 곳에 둔다.
-import { PRICE, VEO, cost, r6 } from './pricing.js';
+import { PRICE, LIVE_VIDEO, cost, r6 } from './pricing.js';
 
 // 실측 기반 기본 소비량 (2026-08 기준, Opus 4.8 + ElevenLabs + Gemini 이미지).
 export const MODEL = {
@@ -18,17 +18,17 @@ export const MODEL = {
 };
 
 /**
- * @param {{minutes:number, research:boolean, researchIn?:number, veo?:boolean, scriptOnly?:boolean, reuseScript?:boolean}} opts
+ * @param {{minutes:number, research:boolean, researchIn?:number, liveVideo?:boolean, scriptOnly?:boolean, reuseScript?:boolean}} opts
  *   researchIn 을 주면 실측 보정값으로 대체한다.
- *   veo 를 주면 그 값으로, 안 주면 서버 기본값(USE_VEO)으로 계산한다.
+ *   liveVideo 를 주면 그 값으로, 안 주면 서버 기본값(USE_LIVE_VIDEO)으로 계산한다.
  *   scriptOnly: 대본 미리보기 — 리서치·대본만 돌리고 멈춘다.
  *   reuseScript: 이어만들기 — 미리보기에서 만든 대본을 재사용하므로 리서치·대본 비용이 없다.
  */
-export function estimateRun({ minutes, research, researchIn, veo, scriptOnly, reuseScript }) {
+export function estimateRun({ minutes, research, researchIn, liveVideo, scriptOnly, reuseScript }) {
   const m = { ...MODEL, ...(researchIn ? { researchIn } : {}) };
-  const useVeo = veo === undefined ? VEO.enabled : Boolean(veo);
+  const useLiveVideo = liveVideo === undefined ? LIVE_VIDEO.enabled : Boolean(liveVideo);
   // 미리보기는 대본까지만, 이어만들기는 대본 이후만 — 두 번 합쳐도 한 번 값과 같아야 한다.
-  const veoSeconds = useVeo && !scriptOnly ? VEO.clipCount * VEO.clipSeconds : 0;
+  const seedanceSeconds = useLiveVideo && !scriptOnly ? LIVE_VIDEO.clipCount * LIVE_VIDEO.clipSeconds : 0;
   const claudeOn = !reuseScript;
 
   const usage = {
@@ -37,7 +37,7 @@ export function estimateRun({ minutes, research, researchIn, veo, scriptOnly, re
     ttsChars: scriptOnly ? 0 : Math.round(m.charsPerMin * minutes),
     geminiImages: scriptOnly ? 0 : m.images,
     images: 0,
-    veoSeconds,
+    seedanceSeconds,
   };
 
   const breakdown = {
@@ -45,13 +45,13 @@ export function estimateRun({ minutes, research, researchIn, veo, scriptOnly, re
     script: claudeOn ? r6((m.scriptIn * PRICE.claudeIn + m.scriptOutPerMin * minutes * PRICE.claudeOut) / 1e6) : 0,
     tts: r6((usage.ttsChars / 1000) * PRICE.tts1k),
     images: r6(usage.geminiImages * PRICE.geminiImage),
-    veo: r6(veoSeconds * PRICE.veoSec),
+    liveVideo: r6(seedanceSeconds * PRICE.seedanceSec),
   };
   const usd = cost(usage);
   return {
     usage,
     breakdown,
-    veo: { enabled: useVeo && !scriptOnly, clips: veoSeconds ? VEO.clipCount : 0, seconds: veoSeconds },
+    liveVideo: { enabled: useLiveVideo && !scriptOnly, clips: seedanceSeconds ? LIVE_VIDEO.clipCount : 0, seconds: seedanceSeconds },
     scriptOnly: Boolean(scriptOnly),
     reuseScript: Boolean(reuseScript),
     usd: r6(usd),

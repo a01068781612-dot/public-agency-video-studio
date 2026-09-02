@@ -18,18 +18,18 @@ export const PRICE = {
   // TTS — 1000자당 달러. Gemini TTS 실측 기준(59자 → 출력 222토큰, 출력 $10/1M).
   // ElevenLabs 로 되돌리면 0.22 로 바꿔야 한다.
   tts1k: Number(process.env.PRICE_TTS_1K || 0.037),
-  // Veo 3.1 Lite 실사 영상 — 초당 달러(720p 기준). 1080p 는 약 $0.08.
-  veoSec: Number(process.env.PRICE_VEO_SEC || 0.05),
+  // 시댄스(Seedance) 2.5 실사 영상 — 초당 달러. 480p 기준(BytePlus/Replicate 원가), 720p 는 약 0.2312.
+  seedanceSec: Number(process.env.PRICE_SEEDANCE_SEC || 0.1028),
   usdKrw: Number(process.env.USD_KRW || 1380),
 };
 
-// Veo 클립 설정 — 파이프라인의 VEO_* 환경변수와 같은 값을 봐야 견적이 맞는다.
-// 길이는 API 가 4·6·8초만 허용한다(5초 불가).
-export const VEO = {
+// 실사 클립 설정 — 파이프라인의 LIVE_VIDEO_*/SEEDANCE_* 환경변수와 같은 값을 봐야 견적이 맞는다.
+// 시댄스 2.5는 4~30초 사이 정수를 받는다(이전 Veo 는 4·6·8초 고정 단계였다).
+export const LIVE_VIDEO = {
   // 실사 클립은 선택이 아니라 필수 구성이므로 기본값이 켜짐이다(견적에 항상 포함된다).
-  enabled: String(process.env.USE_VEO || 'true').toLowerCase() === 'true',
-  clipCount: Number(process.env.VEO_CLIP_COUNT || 6),
-  clipSeconds: Number(process.env.VEO_CLIP_SECONDS || 4),
+  enabled: String(process.env.USE_LIVE_VIDEO || 'true').toLowerCase() === 'true',
+  clipCount: Number(process.env.LIVE_VIDEO_CLIP_COUNT || 6),
+  clipSeconds: Number(process.env.LIVE_VIDEO_CLIP_SECONDS || 4),
 };
 
 // 비용 상한 — 넘으면 실행을 아예 시작하지 않는다. 원화로 잡고 내부에서 달러로 환산한다
@@ -38,7 +38,7 @@ export const LIMITS = {
   // 유료 실행 전면 차단 스위치(비상정지).
   spendEnabled: String(process.env.SPEND_ENABLED || 'true').toLowerCase() !== 'false',
   // 실행 1회 예상 비용 상한(원). 견적이 이보다 크면 트리거를 거부한다.
-  // Veo 를 켠 1분 영상의 견적이 약 2,400원이라 상한이 1,500원이면 항상 거부된다 —
+  // 실사 클립을 켠 1분 영상의 견적이 약 2,400원이라 상한이 1,500원이면 항상 거부된다 —
   // 실비에 약간의 여유만 얹어 3,000원으로 둔다(오차로 막히지 않을 만큼만).
   perRunKrw: Number(process.env.LIMIT_PER_RUN_KRW || 3000),
   // 하루 누적 사용액 상한(원). 오늘 이미 이만큼 썼으면 더 실행하지 않는다.
@@ -53,7 +53,7 @@ export function cost(t) {
     ((t.images || 0) * PRICE.image) +
     ((t.geminiImages || 0) * PRICE.geminiImage) +
     (((t.ttsChars || 0) / 1000) * PRICE.tts1k) +
-    ((t.veoSeconds || 0) * PRICE.veoSec)
+    ((t.seedanceSeconds || 0) * PRICE.seedanceSec)
   );
 }
 

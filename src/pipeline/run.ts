@@ -277,23 +277,23 @@ function renderDeckVideo(): Promise<void> {
 
 /** 3) 영상 렌더 + AI 썸네일 */
 /**
- * visual="liveaction" 씬의 이미지를 Veo 로 움직이게 만들어 public/clip/*.mp4 로 저장한다.
+ * visual="liveaction" 씬의 이미지를 시댄스(Seedance) 2.5 로 움직이게 만들어 public/clip/*.mp4 로 저장한다.
  * 반환: { 씬id: staticFile 상대경로 }. 실패한 컷은 빠지고, 호출부는 그 씬을 정지 이미지로 렌더한다.
  *
- * 비용 안전장치: 실행당 개수 하드 상한(VEO_CLIP_COUNT)을 넘는 컷은 아예 생성하지 않는다.
+ * 비용 안전장치: 실행당 개수 하드 상한(LIVE_VIDEO_CLIP_COUNT)을 넘는 컷은 아예 생성하지 않는다.
  */
 async function generateLiveActionClips(scenes: SceneWithAudio[]): Promise<Record<string, string>> {
   const out: Record<string, string> = {};
-  if (!config.useVeo) return out;
+  if (!config.useLiveVideo) return out;
 
   // 이미지가 있는 liveaction 씬만 대상 — 이미지가 시작 프레임이라 없으면 만들 수 없다.
   const wanted = scenes.filter((s) => s.visual === 'liveaction' && s.imagePath);
-  // 요금은 초 단위로 붙는다. 개수로만 막으면 8초 클립이 섞였을 때 예산을 두 배로 넘길 수 있다.
-  const budgetSec = Math.max(0, config.veoClipCount * config.veoClipSeconds);
+  // 요금은 초 단위로 붙는다. 개수로만 막으면 긴 클립이 섞였을 때 예산을 크게 넘길 수 있다.
+  const budgetSec = Math.max(0, config.liveVideoClipCount * config.liveVideoClipSeconds);
   const targets: SceneWithAudio[] = [];
   let planned = 0;
   for (const s of wanted) {
-    const sec = normalizeClipSeconds(s.clipSeconds ?? config.veoClipSeconds);
+    const sec = normalizeClipSeconds(s.clipSeconds ?? config.liveVideoClipSeconds);
     if (planned + sec > budgetSec) continue;
     planned += sec;
     targets.push(s);
@@ -308,16 +308,16 @@ async function generateLiveActionClips(scenes: SceneWithAudio[]): Promise<Record
 
   const clipDir = path.join(PUBLIC_DIR, 'clip');
   await fs.mkdir(clipDir, { recursive: true });
-  const totalSec = targets.reduce((s, x) => s + normalizeClipSeconds(x.clipSeconds ?? config.veoClipSeconds), 0);
+  const totalSec = targets.reduce((s, x) => s + normalizeClipSeconds(x.clipSeconds ?? config.liveVideoClipSeconds), 0);
   console.log(`  · 실사 클립 생성 중... (${targets.length}개, 총 ${totalSec}초)`);
 
   for (const [i, scene] of targets.entries()) {
-    const seconds = normalizeClipSeconds(scene.clipSeconds ?? config.veoClipSeconds);
+    const seconds = normalizeClipSeconds(scene.clipSeconds ?? config.liveVideoClipSeconds);
     try {
       const imagePng = await fs.readFile(path.join(PUBLIC_DIR, scene.imagePath!));
       const mp4 = await generateVideoClip({
         imagePng,
-        // 움직임(motion)만 넘기면 Veo 가 그림 내용을 모른 채 장면을 지어낸다.
+        // 움직임(motion)만 넘기면 시댄스가 그림 내용을 모른 채 장면을 지어낸다.
         // 그 씬이 무엇을 담은 그림인지(illustration)를 함께 줘서 같은 장면 안에서만 움직이게 한다.
         motionPrompt: [scene.illustration?.trim(), scene.motion?.trim()].filter(Boolean).join('. ')
           || 'subtle natural motion, slow camera push in',
