@@ -19,7 +19,7 @@ import { recordUsage } from './usage.js';
  *
  * @returns 리서치 요약 텍스트. 실패하면 빈 문자열(호출부는 리서치 없이 진행).
  */
-export async function researchRecentInfo(params: { dateLabel: string; topic?: string; kind?: 'topic' | 'landscape' }): Promise<string> {
+export async function researchRecentInfo(params: { dateLabel: string; topic?: string; kind?: 'topic' | 'landscape'; domestic?: boolean }): Promise<string> {
   if (config.researchProvider === 'anthropic') return researchWithClaude(params);
   if (!config.openaiApiKey) {
     console.warn('  · RESEARCH_PROVIDER=openai 이지만 OPENAI_API_KEY 없음 → Claude 웹서치로 대체');
@@ -30,11 +30,21 @@ export async function researchRecentInfo(params: { dateLabel: string; topic?: st
   return result || researchWithClaude(params);
 }
 
-function buildQuery(topic?: string, kind: 'topic' | 'landscape' = 'topic'): string {
+/**
+ * domestic 이 true 면 국내 사고·재난 소재로 취급해 검색어를 국내 언론 보도 위주로 좁힌다.
+ * 별도 API(네이버 등) 없이, 지금 쓰는 OpenAI/Claude 내장 web_search 에 "어디를 우선 찾을지"만
+ * 더 구체적으로 지시하는 방식이다 — 두 툴 다 검색어에 실린 힌트를 실제로 반영한다.
+ */
+function buildQuery(topic?: string, kind: 'topic' | 'landscape' = 'topic', domestic = false): string {
   // 'landscape': 기초(basics) 개념 영상용 — 주제가 무엇이든 "지금 현재의 최신 모델 지형"을 알아야
   // GPT-4o 같은 이미 구세대가 된 모델을 대표 예시로 드는 실수를 막는다(학습 시점 지식은 낡음).
   if (kind === 'landscape') {
     return '지금 현재 각 회사의 최신 주력 대형 언어 모델(LLM)이 무엇인지 — OpenAI, Anthropic(Claude), Google(Gemini), Meta 등 회사별 가장 최근 출시된 대표 모델의 정확한 이름·버전과 대략의 컨텍스트 길이. 이미 구세대가 된 모델(예: GPT-4o, GPT-4 Turbo)이 아니라 "가장 최신" 모델';
+  }
+  if (domestic) {
+    return topic
+      ? `"${topic}" — 연합뉴스·YTN·KBS·소방청/소방본부 보도자료 등 한국 언론·공공기관 발표 중심으로, 발생 일시·장소·규모(인명·재산 피해)·원인·초기 대응 경과·후속 조치를 사실관계로 확인`
+      : '최근 국내에서 보도된 화재·안전사고 사례와 소방청·행정안전부의 계절별 화재예방 캠페인 발표';
   }
   // 소재가 AI 뉴스만이 아니다(특정 사건·수상·정책 발표 등 무엇이든 올 수 있다).
   // 그래서 검색어를 AI 업계 용어로 좁히지 않고, 육하원칙 사실관계를 요구한다.
@@ -80,10 +90,10 @@ function researchPrompt(dateLabel: string, query: string): string {
 }
 
 /** 저비용 provider: OpenAI Responses API + 내장 web_search 툴 (gpt-4.1-mini 기본값). tool_choice 로 검색을 강제한다. */
-async function researchWithOpenAI(params: { dateLabel: string; topic?: string; kind?: 'topic' | 'landscape' }): Promise<string> {
-  const { dateLabel, topic, kind } = params;
+async function researchWithOpenAI(params: { dateLabel: string; topic?: string; kind?: 'topic' | 'landscape'; domestic?: boolean }): Promise<string> {
+  const { dateLabel, topic, kind, domestic } = params;
   const client = new OpenAI({ apiKey: config.openaiApiKey });
-  const query = buildQuery(topic, kind);
+  const query = buildQuery(topic, kind, domestic);
   try {
     const res = await client.responses.create({
       model: config.openaiResearchModel,
@@ -116,10 +126,10 @@ async function researchWithOpenAI(params: { dateLabel: string; topic?: string; k
  *
  * 툴 정의와 thinking 은 모델 세대를 타므로 claudeCaps 에서 만들어 쓴다(같은 400 을 다시 밟지 않기 위해).
  */
-async function researchWithClaude(params: { dateLabel: string; topic?: string; kind?: 'topic' | 'landscape' }): Promise<string> {
-  const { dateLabel, topic, kind } = params;
+async function researchWithClaude(params: { dateLabel: string; topic?: string; kind?: 'topic' | 'landscape'; domestic?: boolean }): Promise<string> {
+  const { dateLabel, topic, kind, domestic } = params;
   const client = new Anthropic({ apiKey: config.anthropicApiKey() });
-  const query = buildQuery(topic, kind);
+  const query = buildQuery(topic, kind, domestic);
   try {
     const res = await client.messages.create({
       model: config.claudeModel,

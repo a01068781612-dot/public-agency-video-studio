@@ -91,19 +91,23 @@ async function stepScript(): Promise<Script> {
   // 붙여넣은 보도자료 원문에 대한 사실 확인·보강이 전혀 안 됐다.)
   const customTopic = config.customTopic || undefined;
   const isBriefTopic = Boolean(customTopic) && (customTopic!.length > 120 || /\n/.test(customTopic!));
+  // 소방청은 "AI 트렌드/기초" 로테이션과 무관한 별도 채널이라, 주제가 없어도 AI 모델 지형
+  // 리서치(아래 else 분기)로 빠지면 안 되고 항상 국내 화재·안전사고 리서치로 가야 한다.
+  const isPreventionCampaign = agency?.id === 'nfa';
   let research: string | undefined;
   if (config.skipResearch) {
     // 사용자가 기사·보도자료 원문을 직접 붙여넣은 경우. 검색으로 보강할 게 없고,
     // 오히려 검색 결과가 원문과 섞여 사실관계가 흐려진다. 시간과 요금도 아낀다.
     console.log('  · 웹서치 생략 (자료 직접 입력 모드) — 붙여넣은 내용만으로 대본을 씁니다');
-  } else if (customTopic || mode === 'trend') {
+  } else if (customTopic || mode === 'trend' || isPreventionCampaign) {
     // 주제 지정/트렌드 모드: 그 주제의 최신 소식을 조사. 대상기관이 있고 주제가 없으면
     // 그 기관이 실제로 벌인 AI 관련 사업·정책까지 검색어에 넣는다 — 도메인 일반론보다
     // "이 기관이 진짜로 한 일"이 나오면 보도자료에 그대로 쓸 수 있어 훨씬 값지다.
     console.log('  · 최신 정보 웹서치 조사 중...');
-    const researchTopic =
-      customTopic ?? (agency ? `"${agency.label}"의 AI 관련 최근 정책·사업 소식, 그리고 AI와 ${agency.domain} 분야의 최신 동향` : undefined);
-    research = await researchRecentInfo({ dateLabel, topic: researchTopic });
+    const researchTopic = customTopic
+      ?? (isPreventionCampaign ? undefined
+        : agency ? `"${agency.label}"의 AI 관련 최근 정책·사업 소식, 그리고 AI와 ${agency.domain} 분야의 최신 동향` : undefined);
+    research = await researchRecentInfo({ dateLabel, topic: researchTopic, domestic: isPreventionCampaign });
   } else {
     // basics(기초 개념) 모드: 주제는 모델이 자동으로 고르므로 특정 주제 검색은 못 하지만,
     // "지금 현재의 최신 모델 지형"을 미리 조사해 넘긴다 — 안 그러면 학습 시점(≈2024) 지식으로

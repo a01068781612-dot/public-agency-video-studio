@@ -6,7 +6,7 @@ import { recordUsage } from './usage.js';
 import { thinkingParam } from './claudeCaps.js';
 import { buildToneGuide, resolveTone } from './tone.js';
 import { resolveArtStyle } from './artStyle.js';
-import { resolveAgency, buildAgencyGuide } from './agency.js';
+import { resolveAgency, buildAgencyGuide, buildFirePreventionCampaignGuide } from './agency.js';
 
 /** 출력 길이 초과로 JSON 이 도중에 잘렸을 때의 표식 — 이 메시지로 재시도 여부를 판단한다. */
 const TRUNCATED_MSG = '대본 JSON 이 출력 도중 잘렸습니다(출력 길이 초과).';
@@ -32,6 +32,8 @@ export async function generateScript(params: {
 
   const { mode, targetMinutes, language, dateLabel, recentTitles = [], customTopic, agencyId, research } = params;
   const agency = resolveAgency(agencyId);
+  // 소방청은 "AI 트렌드 설명"이 아니라 재난 예방 공익광고(PSA) 구조로 완전히 다르게 쓴다.
+  const isPreventionCampaign = agency?.id === 'nfa';
 
   // customTopic 이 한 줄 주제가 아니라 상세 브리핑(설치 방법·단계·목록 등)일 수 있다.
   // 그런 경우 Claude 가 자기 판단으로 요약·생략하지 않도록, 원문 내용을 빠짐없이 충실히 반영하게 강제한다.
@@ -47,8 +49,12 @@ export async function generateScript(params: {
           '',
           `=== 사용자 브리핑 시작 ===\n${customTopic}\n=== 사용자 브리핑 끝 ===`,
         ].join('\n')
-      : `사용자가 지정한 주제 "${customTopic}" 를 정확히 이 주제로 다룬다. 주제에서 벗어나지 말 것. 이 주제가 AI와 직접 관련이 없어도 상관없다 — 굳이 AI 이야기를 억지로 끼워넣지 말고, 아래 리서치로 확인된 사실을 중심으로 이 주제 자체를 정확하게 다루는 것을 최우선으로 한다.`
-    : mode === 'trend'
+      : isPreventionCampaign
+        ? `사용자가 지정한 주제 "${customTopic}" 를 소재로 한 재난 예방 캠페인을 만든다. 주제에서 벗어나지 말 것 — 아래 리서치로 확인된 사실을 중심으로 이 사건/상황 자체를 정확하게 다루는 것을 최우선으로 한다.`
+        : `사용자가 지정한 주제 "${customTopic}" 를 정확히 이 주제로 다룬다. 주제에서 벗어나지 말 것. 이 주제가 AI와 직접 관련이 없어도 상관없다 — 굳이 AI 이야기를 억지로 끼워넣지 말고, 아래 리서치로 확인된 사실을 중심으로 이 주제 자체를 정확하게 다루는 것을 최우선으로 한다.`
+    : isPreventionCampaign
+      ? '주제가 지정되지 않았다 — 계절·시기상 지금 특히 위험한 화재·안전사고 유형 중 하나를 골라 예방 캠페인을 만든다(예: 겨울철 전기장판·난방기기 화재, 여름철 에어컨 실외기 화재, 다중이용시설 비상구 폐쇄, 주방 화재, 전동킥보드·보조배터리 화재 등). 특정 사건 이름을 지어내지 말고, 일반적으로 알려진 위험 상황을 구체적으로 재구성한다.'
+      : mode === 'trend'
       ? '최신 AI 트렌드/뉴스 중, 국가기관·공공기관 홍보담당자가 알아두면 보도자료 작성·내부 보고·언론 문의 대응에 실제로 도움이 되는 소재를 고른다. (예: 정부·공공기관의 AI 도입 사례, 해외 정부의 AI 정책·규제, 언론에 자주 오르내리는 AI 이슈, 공공서비스와 맞닿은 AI 기술 동향, AI 윤리·저작권·데이터 주권 논쟁 등) 순수 개발자 대상 소식(신규 프레임워크, 벤치마크 경쟁 등)보다 "왜 지금 이게 뉴스가 되는지, 공공 부문에 어떤 의미인지"가 뚜렷한 주제를 우선한다.'
       : 'AI를 잘 모르는 홍보담당자도 이해할 수 있는 AI 핵심 개념을 다룬다. 개념 설명에 그치지 말고 "이 개념이 언론·대중에게 어떻게 언급되는지, 보도자료에서 어떻게 정확히 표현해야 하는지"를 함께 짚는다. (예: 생성형 AI/LLM, AI 에이전트, 할루시네이션, 경량모델(sLLM), RAG, 데이터 주권, AI 윤리·규제처럼 뉴스에 자주 나오지만 정확한 뜻은 헷갈리기 쉬운 용어 위주)';
 
@@ -118,9 +124,13 @@ export async function generateScript(params: {
   const artStyle = resolveArtStyle(config.artStyle);
 
   const system = [
-    '너는 국가기관·공공기관 홍보담당자를 위한 브리핑 채널의 수석 작가이자 연출가다. 평소엔 AI 트렌드를 주로 다루지만, 사용자가 특정 사건·이슈를 직접 지정하면 AI 여부와 무관하게 그 주제를 정확하게 다룬다.',
-    '이 채널의 목적은 홍보담당자가 이 영상을 보고 실제 보도자료·SNS 홍보물·내부 보고에 바로 활용할 수 있게 돕는 것이다. 모든 설명은 "이 사실을 공식 커뮤니케이션에 어떻게 정확히 표현할지"를 염두에 두고 쓴다.',
-    ...(agency ? [buildAgencyGuide(agency)] : []),
+    isPreventionCampaign
+      ? '너는 재난 예방 공익광고(PSA)를 만드는 영화감독이자 카피라이터다. 실제 사건이나 현실적인 상황을 소재로, 시청자가 "이건 나도 겪을 수 있다"고 느끼게 만들고 구체적인 예방 행동으로 이어지게 하는 것이 목표다.'
+      : '너는 국가기관·공공기관 홍보담당자를 위한 브리핑 채널의 수석 작가이자 연출가다. 평소엔 AI 트렌드를 주로 다루지만, 사용자가 특정 사건·이슈를 직접 지정하면 AI 여부와 무관하게 그 주제를 정확하게 다룬다.',
+    isPreventionCampaign
+      ? '이 채널의 목적은 일반 국민이 이 영상을 보고 실제로 예방 행동을 하게 만드는 것이다 — 정보 전달이 아니라 행동 변화가 성공 기준이다.'
+      : '이 채널의 목적은 홍보담당자가 이 영상을 보고 실제 보도자료·SNS 홍보물·내부 보고에 바로 활용할 수 있게 돕는 것이다. 모든 설명은 "이 사실을 공식 커뮤니케이션에 어떻게 정확히 표현할지"를 염두에 두고 쓴다.',
+    ...(isPreventionCampaign ? [buildFirePreventionCampaignGuide()] : agency ? [buildAgencyGuide(agency)] : []),
     `영상은 씬마다 "${artStyle.label} 화풍의 삽화 한 장 + 화면 하단 자막(나레이션) + 배경음악"으로 구성되는 설명 영상이다. (손그림/판서/플래시 애니메이션이 아니다.)`,
     'diagram/comparison 씬은 그림 대신 코드로 그린 등각 모션 그래픽(떠 있는 원반+라벨 카드, 화살표)이 자동으로 들어간다.',
     '시청자는 한국어 사용자다. 흥미롭게, 그러나 정확하고 밀도 있게 설명해야 한다.',
@@ -138,7 +148,9 @@ export async function generateScript(params: {
     // 한국 기관 홍보물인데 그림이 미국 풍경으로 나오면 그대로 쓸 수 없다. 이미지 모델은
     // 국적을 안 적으면 기본값으로 미국식 장면(영문 표기 소방차 등)을 그린다 — 매번 명시한다.
     '★배경은 반드시 한국이다★ illustration 묘사에 등장하는 사람은 "Korean"으로 명시하고, 장소·건물·차량·거리 풍경도 한국식으로 적는다(예: "Korean street", "Korean office building", "Korean government office interior"). 국적을 안 적으면 이미지 모델이 미국 장면을 그려버려서 한국 기관 홍보물로 못 쓴다.',
-    ...(agency
+    // 예방 캠페인 모드는 "기관 현장"이 아니라 "시청자가 겪을 법한 일상 공간"이 주인공이라
+    // (buildFirePreventionCampaignGuide 에서 이미 지시함) 아래 기관-현장 강제 지침을 건너뛴다.
+    ...(agency && !isPreventionCampaign
       ? [
           `★모든 illustration 은 "${agency.label}" 현장이어야 한다★ 이 기관 소관 분야(${agency.domain})에서 실제로 일하는 한국인 담당자와, 그 분야에서 실제로 쓰는 장비·시설·서류·화면이 매 컷에 보이게 한다. 주제가 일반적인 내용이더라도 장면은 이 기관 맥락으로 옮겨서 묘사한다 — 예를 들어 "회의하는 사람들"이 아니라 "그 기관 사무실에서 해당 업무 자료를 놓고 회의하는 한국인 공무원들"처럼 적는다. 기관과 아무 상관 없는 일반 사무실·해외 풍경·스톡사진 같은 장면은 쓰지 마라.`,
           '단, 기관 로고·표장·현판·제복의 마크·문서에 적힌 글자 같은 식별 표식은 절대 그리지 마라 — AI 가 만든 정부 표장은 실재하지 않는 가짜 표장이 되고, 글자는 항상 깨져 나온다. 복장·장비·공간의 성격만으로 어떤 기관인지 드러나게 한다.',
@@ -160,7 +172,9 @@ export async function generateScript(params: {
     isCapped
       ? `- 한 씬의 narration 은 1~2문장, 대략 ${Math.round(targetChars / sceneMax)}~${Math.round(targetChars / sceneMin)}자로 짧게 쓴다. 총량 상한이 있으므로 씬을 늘리면 씬당 길이를 줄여야 한다.`
       : '- 한 씬의 narration 은 2~4문장, 대략 120~200자로 충분히 쓴다 — 한 문장만 달랑 쓰면 영상이 짧아지는 주된 원인이 된다. (예외: quote 씬만은 한 문장 임팩트로 짧게 쓴다.)',
-    '- 첫 씬은 visual="title" 로 후킹 도입(왜 이 주제가 중요한지)을 담는다. visual="title" 은 이 영상 전체에서 딱 이 첫 씬 한 번만 쓴다 — 중간에 장/화제를 전환하고 싶어도 title 을 또 쓰지 마라(그러면 그 씬마다 AI 그림 한 장 + 줌 효과가 반복돼 영상 전체가 "맨날 같은 그림"처럼 보이는 가장 큰 원인이 된다). 장 전환이 필요하면 quote(소제목이나 전환 문장을 강조 문구로) 또는 bullets 를 대신 써라.',
+    isPreventionCampaign
+      ? '- 첫 씬은 visual="title" 로 사건 훅을 담는다(언제·어디서·무슨 일이 있었는지, 또는 그런 일이 있을 법한 구체적 상황). "오늘은 ~에 대해 알아보겠습니다" 식 설명 도입 금지 — 시청자가 그 상황 안에 들어와 있는 것처럼 시작한다. visual="title" 은 이 첫 씬 한 번만 쓴다.'
+      : '- 첫 씬은 visual="title" 로 후킹 도입(왜 이 주제가 중요한지)을 담는다. visual="title" 은 이 영상 전체에서 딱 이 첫 씬 한 번만 쓴다 — 중간에 장/화제를 전환하고 싶어도 title 을 또 쓰지 마라(그러면 그 씬마다 AI 그림 한 장 + 줌 효과가 반복돼 영상 전체가 "맨날 같은 그림"처럼 보이는 가장 큰 원인이 된다). 장 전환이 필요하면 quote(소제목이나 전환 문장을 강조 문구로) 또는 bullets 를 대신 써라.',
     '- 중간 씬은 illustration / bullets / diagram / comparison / quote / code 여섯 가지로 구성한다(title 은 위에서 말했듯 중간에 쓰지 않는다).',
     '- ★가장 중요★ visual="illustration" 은 실제 장면을 그린 그림 한 장이 화면을 채우는 씬이고, 나머지 다섯 종류는 전부 글자·도형만 나오는 화면이다. 그래서 illustration 이 적으면 영상 전체가 "글자만 나오는 영상"이 되어 홍보물로 쓸 수 없다. 중간 씬의 절반 이상(최소 50%)을 illustration 으로 채워라. 사건 현장, 사람들이 일하는 모습, 장비·시설·서류 같은 실물이 등장하는 대목은 무조건 illustration 으로 간다.',
     ...(useLiveVideo
@@ -179,7 +193,9 @@ export async function generateScript(params: {
     '- visual="diagram" 은 실제로 "여러 요소가 순서/관계로 연결되는" 내용에만 쓴다(흐름, 파이프라인, 구조). 그냥 나열식 정보는 diagram 대신 bullets 를 써라.',
     '- diagram 을 쓰는 씬은 nodes(2~6개)와 edges(화살표)로 개념 흐름을 표현한다. node.id 는 짧은 영숫자, label 은 한국어.',
     '- comparison 씬은 두 개념/접근을 좌우로 비교한다. leftItems/rightItems 각 항목은 카드 안에 한 줄로 들어가야 하므로 12자 이내로 짧게 — "Claude Code, OpenCode 같은 실행기" 처럼 긴 문장을 통째로 넣지 말고 "실행기 직접 구현"처럼 핵심만 압축해라.',
-    '- 마지막 씬은 visual="outro" 로 핵심 3줄 요약(홍보담당자가 보도자료·보고서에 그대로 인용해도 될 정도로 정확한 문장) + 구독 유도를 담는다.',
+    isPreventionCampaign
+      ? '- 마지막 씬은 visual="outro" 로 행동 촉구(CTA)를 담는다 — "오늘 알아봤습니다" 식 요약이 아니라, 시청자가 이 영상을 보고 나서 지금 당장 확인·실천할 수 있는 구체적 행동 1~2가지(예: "자기 전 멀티탭 스위치 끄기", "소화기 위치 확인하기")로 끝낸다. 구독 유도는 넣지 않는다.'
+      : '- 마지막 씬은 visual="outro" 로 핵심 3줄 요약(홍보담당자가 보도자료·보고서에 그대로 인용해도 될 정도로 정확한 문장) + 구독 유도를 담는다.',
     '- title/outro 씬(영상 전체에서 첫 씬과 마지막 씬)은 icon 필드로 렌더링된다(생활코딩 스타일 평면 2D 라인 아이콘, AI 그림 아님). icon 필드를 반드시 채워라. 고를 수 있는 값: document(문서/자료/정의), chat(질문/대화/논쟁), search(조사/분석/검색), lock(보안/권한/잠금), key(인증/접근권한), database(데이터/저장소), server(인프라/백엔드/실행환경), cloud(클라우드/원격서비스), terminal(코드/커맨드/실행), gear(설정/구성), link(연결/통합/연동), check(완료/검증/성공), warning(주의/오류/리스크), user(개인/사용자), users(팀/커뮤니티), clock(시간/속도/지연), chart(성장/통계/수치), mail(알림/전달).',
     '- icon 선택 원칙: 반드시 그 씬이 실제로 설명하는 대상과 의미가 통하는 것을 골라라 — 장식으로 아무거나 고르면 안 된다. 예: "용어 정의"를 다루면 document나 search, "보안/권한 얘기"면 lock이나 key, "데이터/저장"이면 database, "실행 환경/인프라"면 server나 cloud, "코드/커맨드 예시"면 terminal, "설정값 얘기"면 gear, "여러 도구가 연동됨"이면 link, "결론/맞다"면 check, "위험 경고"면 warning, "숫자/트렌드"면 chart. heading·narration 을 보고 가장 뜻이 맞는 것 하나를 고른다. 애매하면 문서/개념 정의를 뜻하는 document 를 기본값으로.',
     '- 같은 영상 안에서 title 과 outro 가 같은 icon 을 또 쓰지 마라(둘은 보통 다른 국면 — 도입 vs 결론 — 이므로 서로 다른 icon 이 자연스럽다).',
