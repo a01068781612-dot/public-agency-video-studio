@@ -166,10 +166,12 @@ export const config = {
   // 480p 가 시댄스 2.5 의 최저 해상도이자 최저가(720p 대비 절반 이하). 이 채널은 화질보다 비용이 우선.
   seedanceResolution: optional('SEEDANCE_RESOLUTION', '480p'),
   // 실행당 클립 개수 하드 상한. 초과하면 생성하지 않는다.
-  liveVideoClipCount: Number(optional('LIVE_VIDEO_CLIP_COUNT', '6')),
+  // 이 채널은 "짧은 실사 액센트" 가 아니라 "거의 전체가 실사"인 캠페인이라 개수는 적게,
+  // 길이는 길게 간다(2개 × 25초 ≈ 60초 영상 대부분).
+  liveVideoClipCount: Number(optional('LIVE_VIDEO_CLIP_COUNT', '2')),
   // 클립 길이(초). 시댄스 2.5는 4~30초 사이 아무 정수나 받는다(Veo 처럼 4·6·8 고정 단계가 아니다).
   // 이 값은 대본이 지정하지 않았을 때의 기본값 겸, 총 길이 예산 계산의 기준이다.
-  liveVideoClipSeconds: Number(optional('LIVE_VIDEO_CLIP_SECONDS', '4')),
+  liveVideoClipSeconds: Number(optional('LIVE_VIDEO_CLIP_SECONDS', '25')),
 
   // 씬 일러스트 화풍(src/lib/artStyle.ts). auto 면 날짜 기준으로 회차마다 다르게 고른다.
   artStyle: optional('ART_STYLE', 'isometric').toLowerCase(),

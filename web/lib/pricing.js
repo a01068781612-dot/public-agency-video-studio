@@ -28,8 +28,9 @@ export const PRICE = {
 export const LIVE_VIDEO = {
   // 실사 클립은 선택이 아니라 필수 구성이므로 기본값이 켜짐이다(견적에 항상 포함된다).
   enabled: String(process.env.USE_LIVE_VIDEO || 'true').toLowerCase() === 'true',
-  clipCount: Number(process.env.LIVE_VIDEO_CLIP_COUNT || 6),
-  clipSeconds: Number(process.env.LIVE_VIDEO_CLIP_SECONDS || 4),
+  // 짧은 액센트가 아니라 거의 전체가 실사인 캠페인이라 개수는 적게, 길이는 길게(2개×25초).
+  clipCount: Number(process.env.LIVE_VIDEO_CLIP_COUNT || 2),
+  clipSeconds: Number(process.env.LIVE_VIDEO_CLIP_SECONDS || 25),
 };
 
 // 비용 상한 — 넘으면 실행을 아예 시작하지 않는다. 원화로 잡고 내부에서 달러로 환산한다
@@ -38,13 +39,13 @@ export const LIMITS = {
   // 유료 실행 전면 차단 스위치(비상정지).
   spendEnabled: String(process.env.SPEND_ENABLED || 'true').toLowerCase() !== 'false',
   // 실행 1회 예상 비용 상한(원). 견적이 이보다 크면 트리거를 거부한다.
-  // 시댄스 2.5(480p) 전환 후 1분 영상 견적이 약 4,100원으로 올라서(Veo 때는 약 2,400원),
-  // 옛 상한 3,000원을 그대로 두면 정상적인 실행까지 항상 거부된다. 실비에 여유를 조금
-  // 얹어 5,000원으로 둔다(오차로 막히지 않을 만큼만 — DAILY_VIDEO_LIMIT=1 이 이미 남발을 막는다).
-  perRunKrw: Number(process.env.LIMIT_PER_RUN_KRW || 5000),
+  // 실사 클립을 "짧은 액센트"(6개×4초=24초)에서 "영상 대부분"(2개×25초=50초)으로 늘리면서
+  // 1분 영상 견적이 약 7,800원까지 올랐다(Veo 때는 약 2,400원). 실비에 여유를 얹어
+  // 9,000원으로 둔다(오차로 막히지 않을 만큼만 — DAILY_VIDEO_LIMIT=1 이 이미 남발을 막는다).
+  perRunKrw: Number(process.env.LIMIT_PER_RUN_KRW || 9000),
   // 하루 누적 사용액 상한(원). 오늘 이미 이만큼 썼으면 더 실행하지 않는다.
-  // 영상 1편(~4,100원) + 대본 미리보기 몇 번(각 ~130원)이 여유 있게 들어가게 6,000원.
-  perDayKrw: Number(process.env.LIMIT_PER_DAY_KRW || 6000),
+  // 영상 1편(~7,800원) + 대본 미리보기 몇 번(각 ~130원)이 여유 있게 들어가게 10,000원.
+  perDayKrw: Number(process.env.LIMIT_PER_DAY_KRW || 10000),
   // 하루에 만들 수 있는 영상 개수 상한(대본 미리보기는 세지 않는다).
   dailyVideoLimit: Number(process.env.DAILY_VIDEO_LIMIT || 1),
   // 캠페인 종료일(KST). 코드는 남겨두고 날짜로만 잠근다 — src/config.ts 의 같은 이름 값과

@@ -120,9 +120,9 @@ jobs:
       REPLICATE_API_TOKEN: ${{ secrets.REPLICATE_API_TOKEN }}
       SEEDANCE_MODEL: ${{ vars.SEEDANCE_MODEL || 'bytedance/seedance-2.5' }}
       SEEDANCE_RESOLUTION: ${{ vars.SEEDANCE_RESOLUTION || '480p' }}
-      LIVE_VIDEO_CLIP_COUNT: ${{ vars.LIVE_VIDEO_CLIP_COUNT || '6' }}
-      # 시댄스 2.5는 4~30초 사이 정수를 받는다(Veo처럼 4·6·8 고정 단계가 아니다).
-      LIVE_VIDEO_CLIP_SECONDS: ${{ vars.LIVE_VIDEO_CLIP_SECONDS || '4' }}
+      LIVE_VIDEO_CLIP_COUNT: ${{ vars.LIVE_VIDEO_CLIP_COUNT || '2' }}
+      # 시댄스 2.5는 4~30초 사이 정수를 받는다(Veo처럼 4·6·8 고정 단계가 아니다). 2개×25초로 영상 대부분을 실사로.
+      LIVE_VIDEO_CLIP_SECONDS: ${{ vars.LIVE_VIDEO_CLIP_SECONDS || '25' }}
       CONTENT_MODE: ${{ github.event.inputs.content_mode || github.event.client_payload.cfg.content_mode || github.event.client_payload.content_mode || vars.CONTENT_MODE || 'auto' }}
       # 대본 난이도/전문성: basic | intermediate | expert. 기본 expert(전문가용).
       CONTENT_LEVEL: ${{ github.event.inputs.content_level || github.event.client_payload.cfg.content_level || github.event.client_payload.content_level || vars.CONTENT_LEVEL || 'expert' }}

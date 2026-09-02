@@ -95,6 +95,7 @@ export async function generateScript(params: {
   // 실사 클립을 쓸 때만 관련 지시를 넣는다 — 꺼져 있는데 설명하면 모델이 안 되는 씬을 만든다.
   const useLiveVideo = config.useLiveVideo;
   const liveVideoClipCount = config.liveVideoClipCount;
+  const liveVideoClipSeconds = config.liveVideoClipSeconds;
 
   // 씬 개수도 분량에 비례해야 한다 — 예전엔 "28~40개"로 고정돼 있어서, 1~3분짜리 홍보용
   // 짧은 영상에 그대로 적용하면 씬 하나가 몇 초짜리로 쪼개져 만들 수 없는 지시가 됐다.
@@ -176,13 +177,21 @@ export async function generateScript(params: {
       ? '- 첫 씬은 visual="title" 로 사건 훅을 담는다(언제·어디서·무슨 일이 있었는지, 또는 그런 일이 있을 법한 구체적 상황). "오늘은 ~에 대해 알아보겠습니다" 식 설명 도입 금지 — 시청자가 그 상황 안에 들어와 있는 것처럼 시작한다. visual="title" 은 이 첫 씬 한 번만 쓴다.'
       : '- 첫 씬은 visual="title" 로 후킹 도입(왜 이 주제가 중요한지)을 담는다. visual="title" 은 이 영상 전체에서 딱 이 첫 씬 한 번만 쓴다 — 중간에 장/화제를 전환하고 싶어도 title 을 또 쓰지 마라(그러면 그 씬마다 AI 그림 한 장 + 줌 효과가 반복돼 영상 전체가 "맨날 같은 그림"처럼 보이는 가장 큰 원인이 된다). 장 전환이 필요하면 quote(소제목이나 전환 문장을 강조 문구로) 또는 bullets 를 대신 써라.',
     '- 중간 씬은 illustration / bullets / diagram / comparison / quote / code 여섯 가지로 구성한다(title 은 위에서 말했듯 중간에 쓰지 않는다).',
-    '- ★가장 중요★ visual="illustration" 은 실제 장면을 그린 그림 한 장이 화면을 채우는 씬이고, 나머지 다섯 종류는 전부 글자·도형만 나오는 화면이다. 그래서 illustration 이 적으면 영상 전체가 "글자만 나오는 영상"이 되어 홍보물로 쓸 수 없다. 중간 씬의 절반 이상(최소 50%)을 illustration 으로 채워라. 사건 현장, 사람들이 일하는 모습, 장비·시설·서류 같은 실물이 등장하는 대목은 무조건 illustration 으로 간다.',
+    isPreventionCampaign
+      ? '- ★가장 중요★ 이 채널은 정지 그림 위주 설명 영상이 아니라 실사 영상(liveaction) 위주 캠페인이다. visual="illustration"/bullets/diagram 등 정지 화면은 title·outro 사이 짧은 전환에만 최소로 쓰고, 본문 대부분은 liveaction 으로 채운다.'
+      : '- ★가장 중요★ visual="illustration" 은 실제 장면을 그린 그림 한 장이 화면을 채우는 씬이고, 나머지 다섯 종류는 전부 글자·도형만 나오는 화면이다. 그래서 illustration 이 적으면 영상 전체가 "글자만 나오는 영상"이 되어 홍보물로 쓸 수 없다. 중간 씬의 절반 이상(최소 50%)을 illustration 으로 채워라. 사건 현장, 사람들이 일하는 모습, 장비·시설·서류 같은 실물이 등장하는 대목은 무조건 illustration 으로 간다.',
     ...(useLiveVideo
-      ? [
-          `- ★visual="liveaction" 씬을 반드시 ${liveVideoClipCount}개 넣어라(선택이 아니라 필수다)★ 그 그림이 실제로 움직이는 짧은 실사 영상이 되는 씬으로, 정지 그림만 있는 영상은 홍보물로 쓸 수 없다. ${liveVideoClipCount}개보다 많이 넣어도, 적게 넣어도 안 된다. 배치는 효과가 큰 자리에: 도입부 후킹, 화제가 크게 바뀌는 전환점, 마무리 직전. illustration 씬 중 이 자리에 해당하는 것들을 liveaction 으로 바꾸면 된다(둘은 형제 관계라 illustration 필드를 똑같이 채운다).`,
-          '- liveaction 씬은 motion 필드에 "무엇이 어떻게 움직이는지"를 영어로 적는다. 장면 설명(그건 illustration 필드가 담당)이 아니라 움직임만 적는다: 카메라의 움직임(slow push in, pan left, static), 피사체의 움직임(smoke rising, people walking past, hands typing). 예: "slow push in as smoke keeps rising and firefighters move across the frame".',
-          '- liveaction 씬은 clipSeconds 를 내용에 맞춰 4~8 사이에서 고른다(시댄스 2.5는 최대 30초까지 가능하지만, 1분 영상 안에서는 한 클립이 길어질수록 다른 씬 분량이 줄어드므로 대부분 4초면 충분하다). 움직임이 단순하고 한 동작이면 4, 동작이 이어지거나 전개가 있으면 6, 넓은 현장을 훑거나 여러 요소가 차례로 보여야 하면 8. 길수록 비싸다.',
-        ]
+      ? isPreventionCampaign
+        ? [
+            `- ★visual="liveaction" 씬을 정확히 ${liveVideoClipCount}개 넣어라(선택이 아니라 필수다)★ 이 영상은 실사 위주라, illustration이 아니라 liveaction이 주인공이다. 각 liveaction 씬은 clipSeconds 를 ${liveVideoClipSeconds}초 안팎(최소 20초, 최대 30초)으로 길게 잡아서, 전체 ${liveVideoClipCount}개 합쳐 ${targetMinutes * 60}초 영상의 대부분(약 ${liveVideoClipCount * liveVideoClipSeconds}초)을 차지하게 한다. 정지 화면은 title·outro 정도로만 남기고, 원인·경과·예방 전환 같은 본문 내용은 전부 이 ${liveVideoClipCount}개 liveaction 씬 안에서 서술한다.`,
+            '- liveaction 씬은 motion 필드에 "무엇이 어떻게 움직이는지"를 영어로 적는다. 한 씬이 20~30초로 기니까, 한 동작이 아니라 시간에 따라 전개되는 여러 동작을 순서대로 적는다(예: "person plugs in an electric blanket, leaves the room, smoke begins rising from the outlet, then flames spread across the bedding"). 장면 설명(그건 illustration 필드가 담당)이 아니라 움직임의 전개만 적는다.',
+            `- clipSeconds 는 ${liveVideoClipSeconds}에 가깝게 고르되(20~30 범위), 그 씬의 narration 길이(음성 길이)와 자연스럽게 맞아야 한다 — 짧은 대사에 30초짜리 클립을 붙이면 화면만 계속 움직이고 내용은 없는 구간이 된다.`,
+          ]
+        : [
+            `- ★visual="liveaction" 씬을 반드시 ${liveVideoClipCount}개 넣어라(선택이 아니라 필수다)★ 그 그림이 실제로 움직이는 짧은 실사 영상이 되는 씬으로, 정지 그림만 있는 영상은 홍보물로 쓸 수 없다. ${liveVideoClipCount}개보다 많이 넣어도, 적게 넣어도 안 된다. 배치는 효과가 큰 자리에: 도입부 후킹, 화제가 크게 바뀌는 전환점, 마무리 직전. illustration 씬 중 이 자리에 해당하는 것들을 liveaction 으로 바꾸면 된다(둘은 형제 관계라 illustration 필드를 똑같이 채운다).`,
+            '- liveaction 씬은 motion 필드에 "무엇이 어떻게 움직이는지"를 영어로 적는다. 장면 설명(그건 illustration 필드가 담당)이 아니라 움직임만 적는다: 카메라의 움직임(slow push in, pan left, static), 피사체의 움직임(smoke rising, people walking past, hands typing). 예: "slow push in as smoke keeps rising and firefighters move across the frame".',
+            '- liveaction 씬은 clipSeconds 를 내용에 맞춰 4~8 사이에서 고른다(시댄스 2.5는 최대 30초까지 가능하지만, 1분 영상 안에서는 한 클립이 길어질수록 다른 씬 분량이 줄어드므로 대부분 4초면 충분하다). 움직임이 단순하고 한 동작이면 4, 동작이 이어지거나 전개가 있으면 6, 넓은 현장을 훑거나 여러 요소가 차례로 보여야 하면 8. 길수록 비싸다.',
+          ]
       : []),
     isShortForm
       ? '- ★단조로움 방지★ 씬 수가 적은 짧은 영상이니 diagram/comparison/quote/code 를 억지로 다 채우려 하지 마라 — 내용에 맞는 타입 1~2가지만 자연스럽게 섞고, 나머지는 illustration 으로 간다. 글자 화면(bullets/quote 등)이 연속 두 씬을 넘지 않게 사이사이에 illustration 을 끼워 넣어라.'
